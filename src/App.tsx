@@ -1,11 +1,12 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import "./index.css";
 import Layout from './layout/Layout';
 import MainPage from './mainPage/MainPage';
 import BoardPage from './boardPage/BoardPage';
 import SignInfo from './signInfo/SignInfo';
-import AdminLayout from './adminPage/AdminLayout';
+import AdminLayout from './adminPage/AdminPage';
+import MyPage from './myPage/MyPage';
 
 function App() {
   return (
@@ -18,11 +19,15 @@ function App() {
         <Route path="/board/*" element={<Layout><BoardPage /></Layout>} />
 
         {/* 관리자 페이지 */}
-        <Route path="/admin/*" element={<Layout><AdminLayout /></Layout>} />
+        <Route path="/admin/:tab" element={<Layout><AdminLayout /></Layout>} />
+
+        {/* 마이 페이지 */}
+        <Route path="/myPage" element={<Navigate to="/myPage/MyInfo" replace />} />
+        <Route path="/myPage/:tab" element={<Layout><MyPage /></Layout>} />
 
         {/* 기존 경로 */}
         <Route path="/jobs" element={<Layout><h1>채용정보</h1></Layout>} />
-        <Route path="/myPage" element={<Layout><h1>마이페이지</h1></Layout>} />
+        
         <Route path="/login" element={<Layout><h1>로그인</h1></Layout>} />
         <Route path="/signup" element={<Layout><h1>회원가입</h1></Layout>} />
 
