@@ -60,7 +60,7 @@ const AdminLayout: React.FC = () => {
         </div>
 
         {/* 2열 그리드 테이블 */}
-        <div className="bg-gray-100 shadow-sm rounded-lg border border-gray-200 p-4">
+        <div className="bg-gray-100 shadow-sm rounded-lg p-4">
           <div className="grid grid-cols-2 gap-4">
             {[...Array(16)].map((_, index) => (
               <div
