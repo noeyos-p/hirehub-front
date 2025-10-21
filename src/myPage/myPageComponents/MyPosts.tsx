@@ -98,8 +98,8 @@ const MyPosts = () => {
                 수정하기
               </button>
               <div className="flex items-center text-gray-400 text-xs space-x-4 mt-2">
-                <span>댓글 50</span>
-                <span>조회수 50</span>
+                <span>💬50</span>
+                <span>👁‍🗨50</span>
               </div>
             </div>
           </div>

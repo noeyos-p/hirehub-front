@@ -7,6 +7,8 @@ import BoardPage from './boardPage/BoardPage';
 import SignInfo from './signInfo/SignInfo';
 import AdminLayout from './adminPage/AdminPage';
 import MyPage from './myPage/MyPage';
+import Login from './signPage/login/Login';
+import Signup from './signPage/signup/SignUp';
 
 function App() {
   return (
@@ -28,8 +30,8 @@ function App() {
         {/* 기존 경로 */}
         <Route path="/jobs" element={<Layout><h1>채용정보</h1></Layout>} />
         
-        <Route path="/login" element={<Layout><h1>로그인</h1></Layout>} />
-        <Route path="/signup" element={<Layout><h1>회원가입</h1></Layout>} />
+        <Route path="/login" element={<Layout><Login /></Layout>} />
+        <Route path="/signup" element={<Layout><Signup /></Layout>} />
 
         {/* 회원 가입 시 정보 입력 받는 창 */}
         <Route path="/signInfo" element={<SignInfo />} />
