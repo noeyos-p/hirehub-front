@@ -13,7 +13,7 @@ export default function Header() {
 
           {/* 네비게이션 메뉴 */}
           <nav className="hidden md:flex space-x-8 text-gray-800 font-medium text-sm">
-            <Link to="/jobs">채용정보</Link>
+            <Link to="/jobPostings">채용정보</Link>
             <Link to="/board">자유게시판</Link>
             <Link to="/myPage">마이페이지</Link>
           </nav>

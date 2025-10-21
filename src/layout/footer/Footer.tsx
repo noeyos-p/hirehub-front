@@ -9,9 +9,7 @@ export default function Footer() {
           </p>
         </div>
         <div className="flex space-x-4">
-          <a href="/about" className="hover:text-gray-900 transition-colors">About</a>
-          <a href="/contact" className="hover:text-gray-900 transition-colors">Contact</a>
-          <a href="/privacy" className="hover:text-gray-900 transition-colors">Privacy</a>
+          <a href="/chatBot" className="hover:text-gray-900 transition-colors">고객 상담</a>
         </div>
       </div>
     </footer>
