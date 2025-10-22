@@ -9,13 +9,15 @@ const AllPosts: React.FC = () => {
     <section className="mb-8">
       <div className="flex items-center justify-between mb-8">
         <h2 className="text-xl font-bold text-gray-800">전체 게시물</h2>
-        <div className="relative">
-          <input
-            type="text"
-            className="border border-gray-300 rounded-full px-4 py-1.5 pr-9 text-sm focus:outline-none focus:border-blue-500 w-64"
-          />
-          <MagnifyingGlassIcon className="w-4 h-4 text-gray-500 absolute right-3 top-2.5" />
-        </div>
+         {/* 작성하기 버튼 */}
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => navigate('/board/write')}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-500 text-sm font-medium px-4 py-1.5 rounded-md"
+              >
+                작성하기
+              </button>
+            </div>
       </div>
 
       <div>
@@ -45,15 +47,27 @@ const AllPosts: React.FC = () => {
           ))}
         </div>
 
-        {/* 페이지네이션 */}
-        <div className="flex justify-center space-x-2 mt-8">
-          <button className="px-3 py-1 text-sm text-gray-500 border border-gray-300 rounded">이전</button>
-          {[...Array(5)].map((_, index) => (
-            <button key={index} className="px-3 py-1 text-sm text-gray-500 border border-gray-300 rounded">
-              {index + 1}
-            </button>
-          ))}
-          <button className="px-3 py-1 text-sm text-gray-500 border border-gray-300 rounded">다음</button>
+        {/* 페이지네이션 및 검색 */}
+        <div className="flex items-center justify-between mt-8">
+          {/* 페이지네이션 버튼 */}
+          <div className="flex justify-center flex-1 space-x-0 [margin-right:-140px]">
+            <button className="px-3 py-1 text-sm text-gray-500 border border-gray-300 rounded">이전</button>
+            {[...Array(5)].map((_, index) => (
+              <button key={index} className="px-3 py-1 text-sm text-gray-500 border border-gray-300 rounded">
+                {index + 1}
+              </button>
+            ))}
+            <button className="px-3 py-1 text-sm text-gray-500 border border-gray-300 rounded">다음</button>
+          </div>
+
+          {/* 검색 입력창 */}
+          <div className="relative">
+            <input
+              type="text"
+              className="border border-gray-300 rounded-full px-4 py-1.5 pr-9 text-sm focus:outline-none focus:border-blue-500 w-48"
+            />
+            <MagnifyingGlassIcon className="w-4 h-4 text-gray-500 absolute right-3 top-2.5" />
+          </div>
         </div>
       </div>
     </section>
