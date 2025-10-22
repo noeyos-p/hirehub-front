@@ -28,7 +28,7 @@ function App() {
 
         {/* 마이 페이지 */}
         <Route path="/myPage" element={<Navigate to="/myPage/MyInfo" replace />} />
-        <Route path="/myPage/:tab" element={<Layout><MyPage /></Layout>} />
+        <Route path="/myPage/:tab/*" element={<Layout><MyPage /></Layout>} />
 
         {/* 채용 공고 */}
         <Route path="/jobPostings" element={<Layout><JobPostings /></Layout>} />

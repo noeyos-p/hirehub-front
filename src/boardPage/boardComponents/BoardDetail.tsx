@@ -49,6 +49,19 @@ const BoardDetail: React.FC = () => {
       <div className="mt-8">
         <h3 className="text-md font-semibold text-gray-800 mb-4">댓글 50</h3>
 
+          {/* 댓글 입력창 */}
+        <div className="flex items-center border border-gray-300 rounded-full px-4 py-2">
+          <input
+            type="text"
+            placeholder="댓글을 남겨주세요"
+            className="flex-1 text-sm outline-none"
+          />
+          <button className="text-sm text-gray-600 hover:text-gray-900">
+            ➤
+          </button>
+        </div>
+        <br />
+
         {/* 댓글 리스트 */}
         <div className="space-y-6 mb-8">
           {[...Array(2)].map((_, index) => (
@@ -63,17 +76,7 @@ const BoardDetail: React.FC = () => {
           ))}
         </div>
 
-        {/* 댓글 입력창 */}
-        <div className="flex items-center border border-gray-300 rounded-full px-4 py-2">
-          <input
-            type="text"
-            placeholder="댓글을 남겨주세요"
-            className="flex-1 text-sm outline-none"
-          />
-          <button className="text-sm text-gray-600 hover:text-gray-900">
-            ➤
-          </button>
-        </div>
+      
       </div>
     </section>
   );
