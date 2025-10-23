@@ -25,7 +25,7 @@ function App() {
 
         {/* 관리자 페이지 */}
         <Route path="/admin" element={<Navigate to="/admin/job-management" replace />} />
-        <Route path="/admin/:tab" element={<Layout><AdminLayout /></Layout>} />
+        <Route path="/admin/:tab/*" element={<Layout><AdminLayout /></Layout>} />
 
         {/* 마이 페이지 */}
         <Route path="/myPage" element={<Navigate to="/myPage/MyInfo" replace />} />
