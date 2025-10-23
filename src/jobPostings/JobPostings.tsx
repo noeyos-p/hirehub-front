@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import { BookmarkIcon } from "@heroicons/react/24/outline";
 import JobDetail from "./jopPostingComponents/JobDetail";
 
@@ -10,9 +11,21 @@ const JobPostings: React.FC = () => {
     location: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedJob, setSelectedJob] = useState<any>(null); // ✅ 선택한 공고 저장
-
+  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [jobListings, setJobListings] = useState<any[]>([]); // ✅ DB에서 가져온 공고 리스트 저장
   const itemsPerPage = 7;
+
+  // ✅ 백엔드에서 데이터 가져오기
+  useEffect(() => {
+    axios
+      .get("http://localhost:8080/api/jobposts")
+      .then((res) => {
+        setJobListings(res.data);
+      })
+      .catch((err) => {
+        console.error("채용공고 로딩 실패:", err);
+      });
+  }, []);
 
   const seoulDistricts = [
     "강남구", "강동구", "강북구", "강서구", "관악구",
@@ -22,21 +35,11 @@ const JobPostings: React.FC = () => {
     "용산구", "은평구", "종로구", "중구", "중랑구",
   ];
 
-  const jobListings = [
-    { id: 1, company: "휴넷", title: "백엔드 개발자 신입 / 경력 모집", job: "프론트", experience: "신입", education: "학력무관", location: "서울 강남구", date: "10/21 - 11/5" },
-    { id: 2, company: "카카오", title: "프론트엔드 개발자 모집", job: "백엔드", experience: "경력", education: "대졸", location: "서울 서초구", date: "10/23 - 11/10" },
-    { id: 3, company: "네이버", title: "풀스택 개발자", job: "풀스택", experience: "신입", education: "대졸", location: "성남시", date: "10/24 - 11/15" },
-    { id: 4, company: "라인", title: "서버 개발자", job: "프론트", experience: "경력", education: "학력무관", location: "서울 송파구", date: "10/25 - 11/20" },
-    { id: 5, company: "쿠팡", title: "백엔드 개발자 신입", job: "프론트", experience: "신입", education: "대졸", location: "서울 강동구", date: "10/26 - 11/18" },
-    { id: 6, company: "토스", title: "웹 개발자", job: "백엔드", experience: "경력", education: "학력무관", location: "서울 강남구", date: "10/27 - 11/25" },
-    { id: 7, company: "배민", title: "React 개발자", job: "풀스택", experience: "경력", education: "대졸", location: "서울 송파구", date: "10/28 - 11/30" },
-    { id: 8, company: "당근마켓", title: "Node.js 개발자", job: "백엔드", experience: "신입", education: "대졸", location: "서울 마포구", date: "10/29 - 12/01" },
-  ];
-
+  // ✅ 필터
   const filteredJobs = jobListings.filter(
     (job) =>
       (filters.role ? job.title.includes(filters.role) : true) &&
-      (filters.experience ? job.experience === filters.experience : true) &&
+      (filters.experience ? job.careerLevel === filters.experience : true) &&
       (filters.education ? job.education === filters.education : true) &&
       (filters.location ? job.location.includes(filters.location) : true)
   );
@@ -58,7 +61,7 @@ const JobPostings: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto py-6 px-4">
-        {/* 필터 */}
+        {/* 필터 UI */}
         <div className="flex flex-wrap items-center gap-4 mb-6 text-sm text-gray-700 ">
           <select
             value={filters.role}
@@ -73,7 +76,9 @@ const JobPostings: React.FC = () => {
 
           <select
             value={filters.experience}
-            onChange={(e) => setFilters({ ...filters, experience: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, experience: e.target.value })
+            }
             className="px-3 py-2"
           >
             <option value="">경력</option>
@@ -83,7 +88,9 @@ const JobPostings: React.FC = () => {
 
           <select
             value={filters.education}
-            onChange={(e) => setFilters({ ...filters, education: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, education: e.target.value })
+            }
             className="px-3 py-2"
           >
             <option value="">학력</option>
@@ -94,7 +101,9 @@ const JobPostings: React.FC = () => {
 
           <select
             value={filters.location}
-            onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, location: e.target.value })
+            }
             className="px-3 py-2"
           >
             <option value="">희망지역</option>
@@ -115,14 +124,14 @@ const JobPostings: React.FC = () => {
               onClick={() => setSelectedJob(job)}
             >
               <div>
-                <p className="text-sm font-semibold text-gray-900">{job.company}</p>
+                <p className="text-sm font-semibold text-gray-900">{job.companyName}</p>
                 <p className="text-sm text-gray-800">{job.title}</p>
                 <p className="text-sm text-gray-500">
-                 {job.job} / {job.experience} / {job.education} / {job.location}
+                  {job.careerLevel} / {job.education} / {job.location}
                 </p>
               </div>
               <div className="flex items-center space-x-3 text-sm text-gray-600">
-                <span>{job.date}</span>
+                <span>{job.startAt} - {job.endAt}</span>
                 <BookmarkIcon className="w-5 h-5 text-gray-600 cursor-pointer" />
               </div>
             </div>
@@ -143,7 +152,9 @@ const JobPostings: React.FC = () => {
             <button
               key={i}
               className={`px-3 py-1 text-sm border rounded ${
-                currentPage === i + 1 ? "bg-gray-200 text-gray-700 border-gray-300" : "text-gray-500 border-gray-300"
+                currentPage === i + 1
+                  ? "bg-gray-200 text-gray-700 border-gray-300"
+                  : "text-gray-500 border-gray-300"
               }`}
               onClick={() => setCurrentPage(i + 1)}
             >
