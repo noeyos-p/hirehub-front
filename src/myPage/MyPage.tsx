@@ -7,6 +7,7 @@ import Resume from "./myPageComponents/Resume";
 import ResumeDetail from "./myPageComponents/ResumeDetail";
 import MyPosts from "./myPageComponents/MyPosts";
 import FavoriteCompanies from "./myPageComponents/FavoriteCompanies";
+import SchedulePage from "./myPageComponents/SchedulePage";
 
 const tabs = [
   { key: "MyInfo", label: "내 정보", component: <MyInfo /> },
@@ -15,6 +16,8 @@ const tabs = [
   { key: "FavoriteCompanies", label: "관심 회사", component: <FavoriteCompanies /> },
   { key: "AppliedNotices", label: "지원 내역", component: <AppliedNotices /> },
   { key: "MyPosts", label: "작성한 게시물", component: <MyPosts /> },
+  { key: "SchedulePage", label: "공고 일정", component: <SchedulePage /> },
+
 ];
 
 const MyPage: React.FC = () => {

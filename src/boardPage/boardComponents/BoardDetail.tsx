@@ -76,7 +76,6 @@ const BoardDetail: React.FC = () => {
           ))}
         </div>
 
-      
       </div>
     </section>
   );
