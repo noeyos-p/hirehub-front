@@ -5,6 +5,7 @@ import PopularPosts from './boardComponents/PopularPosts';
 import Ads from './boardComponents/ads';
 import BoardDetail from './boardComponents/BoardDetail';
 import BoardWrite from './boardComponents/BoardWrite';
+import type { Board } from '../types/interface';
 
 const BoardPage: React.FC = () => {
 
@@ -15,7 +16,7 @@ const BoardPage: React.FC = () => {
 
           {/* 좌측: 게시물 목록 / 상세페이지 / 작성페이지 */}
           <div className="col-span-3">
-           
+
             <Routes>
               <Route path="/" element={<AllPosts />} />
               <Route path="write" element={<BoardWrite />} />

@@ -11,6 +11,7 @@ import Login from './signPage/login/Login';
 import Signup from './signPage/signup/SignUp';
 import JobPostings from './jobPostings/JobPostings';
 import CompanyDetail from './jobPostings/jopPostingComponents/CompanyDetail';
+import ChatBot from './chatBot/ChatBot';
 
 function App() {
   return (
@@ -39,6 +40,9 @@ function App() {
 
         {/* 회원 가입 시 정보 입력 받는 창 */}
         <Route path="/signInfo" element={<SignInfo />} />
+
+        {/* 챗봇 */}
+        <Route path="/chatBot" element={<Layout><ChatBot /></Layout>} />
 
         {/* 기업 상세 */}
         <Route path="/company/:companyName" element={<Layout><CompanyDetail onBack={() => window.history.back()} /></Layout>} />
