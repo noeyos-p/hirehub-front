@@ -15,18 +15,6 @@ const JobPostings: React.FC = () => {
   const [jobListings, setJobListings] = useState<any[]>([]); // ✅ DB에서 가져온 공고 리스트 저장
   const itemsPerPage = 7;
 
-  // ✅ 백엔드에서 데이터 가져오기 (api 인스턴스 사용)
-  useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        const res = await api.get("/api/jobposts"); // ✅ baseURL 자동 적용
-        setJobListings(res.data);
-      } catch (err) {
-        console.error("채용공고 로딩 실패:", err);
-      }
-    };
-
-    fetchJobs();
   }, []);
 
   const seoulDistricts = [
