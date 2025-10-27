@@ -1,19 +1,62 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import api from '../../api/api';
 
 const Signup: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 추후 users 테이블과 연동된 API 호출 로직 추가 (예: fetch('/api/signup', { method: 'POST', body: JSON.stringify({ email, password }) }))
-    console.log('Signup attempt with:', { email, password });
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const response = await api.post('/api/auth/signup', {  // ← /api/auth/signup으로 수정
+        email,
+        password,
+      });
+
+      console.log('📦 회원가입 응답:', response.data);
+
+      // 백엔드 응답: { tokenType, accessToken, message, requiresOnboarding }
+      const { accessToken, requiresOnboarding } = response.data;
+
+      if (accessToken) {
+        // 토큰 저장
+        localStorage.setItem('token', accessToken);
+        console.log('🔑 회원가입 성공, 토큰 저장:', accessToken);
+
+        // 온보딩 필요 여부에 따라 분기
+if (requiresOnboarding === 'true') {
+  console.log('📝 온보딩 페이지로 이동');
+  console.log('🔑 이동 전 토큰 재확인:', localStorage.getItem('token'));
+  navigate('/signInfo');  // 또는 '/onboarding' - 라우터 설정 확인!
+} else {
+  console.log('메인페이지로 이동');
+  navigate('/');
+}
+      } else {
+        // 토큰이 없는 경우 (예상치 못한 상황)
+        alert('회원가입이 완료되었습니다!');
+        navigate('/login');
+      }
+      
+    } catch (err: any) {
+      console.error('❌ 회원가입 에러:', err.response?.data);
+      const errorMessage = err.response?.data?.message || '회원가입에 실패했습니다.';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignup = () => {
-    // 추후 Google OAuth API 호출 로직 추가
-    console.log('Google signup attempted');
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+    window.location.href = `${baseURL}/api/auth/google`;
   };
 
   return (
@@ -21,6 +64,14 @@ const Signup: React.FC = () => {
       <div className="flex flex-col items-center w-full max-w-sm space-y-6">
         <img src="/HIREHUB_LOGO.PNG" alt="HireHub Logo" className="h-10" />
         <h1 className="text-text-primary dark:text-white text-2xl font-bold leading-tight text-center px-4 pb-6">회원가입</h1>
+        
+        {/* 에러 메시지 */}
+        {error && (
+          <div className="w-full px-4 py-3 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSignup} className="w-full space-y-4">
           <div className="flex flex-col">
             <label className="flex flex-col min-w-40 flex-1">
@@ -32,6 +83,7 @@ const Signup: React.FC = () => {
                 placeholder="이메일을 입력하세요"
                 className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#0d141b] dark:text-white focus:outline-0 focus:ring-0 border border-[#cfdbe7] dark:border-gray-600 bg-background-light dark:bg-background-dark focus:border-primary h-14 placeholder:text-[#4c739a] dark:placeholder:text-gray-500 p-[15px] text-base font-normal leading-normal"
                 required
+                disabled={isLoading}
               />
             </label>
           </div>
@@ -45,15 +97,17 @@ const Signup: React.FC = () => {
                 placeholder="비밀번호를 입력하세요"
                 className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#0d141b] dark:text-white focus:outline-0 focus:ring-0 border border-[#cfdbe7] dark:border-gray-600 bg-background-light dark:bg-background-dark focus:border-primary h-14 placeholder:text-[#4c739a] dark:placeholder:text-gray-500 p-[15px] text-base font-normal leading-normal"
                 required
+                disabled={isLoading}
               />
             </label>
           </div>
           <div className="flex px-0 py-3 w-full">
             <button
               type="submit"
-              className="bg-blue-500 flex min-w-[84px] max-w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-14 px-5 flex-1 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 focus:outline-none focus:ring-4 focus:ring-primary/30"
+              disabled={isLoading}
+              className="bg-blue-500 flex min-w-[84px] max-w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-14 px-5 flex-1 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 focus:outline-none focus:ring-4 focus:ring-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span className="truncate">회원가입</span>
+              <span className="truncate">{isLoading ? '가입 중...' : '회원가입'}</span>
             </button>
           </div>
           <div className="flex items-center px-4 py-6">
@@ -63,8 +117,10 @@ const Signup: React.FC = () => {
           </div>
           <div className="flex px-0 py-3 w-full">
             <button
+              type="button"
               onClick={handleGoogleSignup}
-              className="flex w-full items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-background-light dark:bg-background-dark h-14 px-5 text-gray-800 dark:text-white font-medium text-lg shadow-md"
+              disabled={isLoading}
+              className="flex w-full items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-background-light dark:bg-background-dark h-14 px-5 text-gray-800 dark:text-white font-medium text-lg shadow-md hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <img
                 alt="Google logo"

@@ -127,7 +127,7 @@ const AdsManagement: React.FC = () => {
                   onDragOver={(e) => handleDragOver(e, index)}
                   onDragEnd={handleDragEnd}
                   onClick={() => handleAdClick(ad)}
-                  className={`flex justify-between items-center bg-gray-50 rounded-md px-4 py-3 cursor-move transition ${
+                  className={`flex justify-between items-center bg-gray-50 rounded-md px-4 py-3 cursor-  transition ${
                     selectedAd?.id === ad.id
                       ? "ring-2 ring-blue-500 shadow-md"
                       : "hover:bg-gray-100 hover:shadow-sm"
