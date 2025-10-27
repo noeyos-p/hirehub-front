@@ -10,12 +10,10 @@ const BoardWrite: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    // 유효성 검사
     if (!title.trim()) {
       alert('제목을 입력해주세요.');
       return;
     }
-
     if (!content.trim()) {
       alert('내용을 입력해주세요.');
       return;
@@ -23,6 +21,8 @@ const BoardWrite: React.FC = () => {
 
     try {
       setLoading(true);
+
+      // 서버에서 토큰으로 로그인 유저 판별
       const createdBoard = await boardApi.createBoard({
         title: title.trim(),
         content: content.trim()
@@ -32,8 +32,6 @@ const BoardWrite: React.FC = () => {
       navigate(`/board/${createdBoard.id}`);
     } catch (err: any) {
       console.error('게시글 작성 실패:', err);
-      
-      // 에러 메시지 처리
       if (err.response?.status === 401) {
         alert('로그인이 필요합니다.');
         navigate('/login');
@@ -68,7 +66,7 @@ const BoardWrite: React.FC = () => {
       <h2 className="text-xl font-bold text-gray-800">게시글 작성</h2>
       <br />
 
-      {/* 게시글 제목 입력 */}
+      {/* 제목 */}
       <div className="mb-6">
         <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
           제목
@@ -84,7 +82,7 @@ const BoardWrite: React.FC = () => {
         />
       </div>
 
-      {/* 게시글 본문 입력 */}
+      {/* 내용 */}
       <div className="mb-6">
         <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">
           내용

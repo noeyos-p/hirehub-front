@@ -22,7 +22,7 @@ const Login: React.FC = () => {
 
       console.log('📦 로그인 응답:', response.data);
 
-      const { accessToken, role, email: userEmail } = response.data;
+      const { accessToken, role, email: userEmail, id: userId } = response.data;
 
       if (accessToken) {
         // 토큰, role, 이메일 저장
@@ -34,6 +34,7 @@ const Login: React.FC = () => {
         console.log('- 토큰:', accessToken.substring(0, 20) + '...');
         console.log('- Role:', role);
         console.log('- Email:', userEmail || email);
+        localStorage.setItem('userId', String(userId));
 
         // role에 따라 페이지 이동
         if (role === 'ADMIN') {
