@@ -5,12 +5,16 @@ import UserManagement from "./adminComponents/UserManagement";
 import CompanyManagement from "./adminComponents/CompanyManagement";
 import AdsManagement from "./adminComponents/AdsManagement";
 import BoardManagement from "./adminComponents/BoardManagement";
+import CommentManagement from "./adminComponents/CommentManagement";
+import ReviewManagement from "./adminComponents/ReviewManagement";
 
 const menuItems = [
   { name: "공고 관리", path: "job-management" },
   { name: "유저 관리", path: "user-management" },
   { name: "기업 관리", path: "company-management" },
   { name: "광고 관리", path: "ads-management" },
+  { name: "댓글 관리", path: "comment-management" },
+  { name: "리뷰 관리", path: "review-management" },
   { name: "게시판 관리", path: "board-management" },
   { name: "로그아웃", path: "logout" },
 ];
@@ -52,6 +56,8 @@ const AdminLayout: React.FC = () => {
         {activeTab === "user-management" && <UserManagement />}
         {activeTab === "company-management" && <CompanyManagement />}
         {activeTab === "ads-management" && <AdsManagement />}
+        {activeTab === "comment-management" && <CommentManagement />}
+        {activeTab === "review-management" && <ReviewManagement />}
         {activeTab === "board-management" && <BoardManagement />}
       </main>
     </div>

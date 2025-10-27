@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
+import React, { useState, useEffect } from "react";
+import { TrashIcon, PhotoIcon, PencilIcon } from "@heroicons/react/24/outline";
+import api from "../../api/api";
 
 interface Job {
   id: number;
@@ -8,85 +9,225 @@ interface Job {
   location: string;
   experience: string;
   deadline: string;
+  imageUrl?: string;
 }
 
 const JobManagement: React.FC = () => {
-  // DB 연동 시 API로 대체 예정
-  const [jobs] = useState<Job[]>([
-    { id: 1, company: "휴넷", title: "백엔드 개발자 신입/경력", location: "서울 강남구", experience: "신입", deadline: "2025-11-05" },
-    { id: 2, company: "카카오", title: "프론트엔드 개발자", location: "서울 서초구", experience: "경력", deadline: "2025-11-10" },
-    { id: 3, company: "네이버", title: "풀스택 개발자", location: "성남시", experience: "신입", deadline: "2025-11-15" },
-    { id: 4, company: "라인", title: "서버 개발자", location: "서울 송파구", experience: "경력", deadline: "2025-11-20" },
-    { id: 5, company: "쿠팡", title: "백엔드 개발자", location: "서울 강동구", experience: "신입", deadline: "2025-11-18" },
-    { id: 6, company: "토스", title: "웹 개발자", location: "서울 강남구", experience: "경력", deadline: "2025-11-25" },
-  ]);
-  
-  const [searchQuery, setSearchQuery] = useState("");
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredJobs = jobs.filter(job => 
-    job.company.includes(searchQuery) || 
-    job.title.includes(searchQuery)
-  );
+  // ✅ 공고 목록 불러오기
+  const fetchJobs = async () => {
+    console.log("=== fetchJobs 시작 ===");
+    
+    // 토큰 확인
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    console.log('저장된 토큰:', token ? token.substring(0, 20) + '...' : '없음');
+    console.log('저장된 Role:', role);
+    
+    if (!token) {
+      setError('로그인이 필요합니다.');
+      return;
+    }
+    
+    if (role !== 'ADMIN') {
+      setError('관리자 권한이 필요합니다.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log('API 호출 시작:', '/api/admin/job-management');
+      
+      const res = await api.get("/api/admin/job-management");
+      
+      console.log('API 응답 성공:', res.data);
+      
+      if (res.data.success) {
+        console.log('공고 데이터:', res.data.data);
+        setJobs(res.data.data);
+      } else {
+        console.error("데이터 불러오기 실패:", res.data.message);
+        setError(res.data.message || '데이터를 불러올 수 없습니다.');
+      }
+    } catch (err: any) {
+      console.error("=== API 요청 오류 ===");
+      console.error('전체 에러:', err);
+      console.error('응답 상태:', err.response?.status);
+      console.error('응답 데이터:', err.response?.data);
+      console.error('에러 메시지:', err.message);
+      
+      if (err.response) {
+        const status = err.response.status;
+        if (status === 401) {
+          setError('인증이 만료되었습니다. 다시 로그인해주세요.');
+          localStorage.removeItem('token');
+          localStorage.removeItem('role');
+          window.location.href = '/login';
+        } else if (status === 403) {
+          setError('관리자 권한이 필요합니다.');
+        } else if (status === 500) {
+          setError('서버 오류가 발생했습니다. 관리자에게 문의하세요.');
+        } else {
+          setError(err.response.data?.message || '오류가 발생했습니다.');
+        }
+      } else if (err.request) {
+        setError('서버와 연결할 수 없습니다. 네트워크를 확인해주세요.');
+      } else {
+        setError(err.message || '알 수 없는 오류가 발생했습니다.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ 첫 렌더링 시 데이터 가져오기
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  const handleJobClick = (job: Job) => setSelectedJob(job);
+
+  // ✅ 파일 업로드 (S3)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedJob) return;
+
+    const formData = new FormData();
+    formData.append("companyId", selectedJob.id.toString());
+    formData.append("file", file);
+
+    try {
+      const res = await api.post("/api/admin/job-management/jobpost-image", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.data.success) {
+        alert("이미지 업로드 성공!");
+        setSelectedJob({ ...selectedJob, imageUrl: res.data.fileUrl });
+      }
+    } catch (err) {
+      console.error("이미지 업로드 실패:", err);
+      alert('이미지 업로드에 실패했습니다.');
+    }
+  };
+
+  // ✅ 공고 삭제
+  const handleDelete = async (jobId: number) => {
+    if (!window.confirm("정말 삭제하시겠습니까?")) return;
+
+    try {
+      const res = await api.delete(`/api/admin/job-management/${jobId}`);
+      if (res.data.success) {
+        alert("삭제 완료");
+        setJobs(jobs.filter((j) => j.id !== jobId));
+      }
+    } catch (err) {
+      console.error("삭제 실패:", err);
+      alert('삭제에 실패했습니다.');
+    }
+  };
+
+  // ✅ 새 공고 등록
+  const handleCreate = async () => {
+    const newJob = {
+      company: "테스트회사",
+      title: "신규 등록 공고",
+      location: "서울 강남구",
+      experience: "신입",
+      deadline: "2025-12-31",
+    };
+
+    try {
+      const res = await api.post("/api/admin/job-management", newJob);
+      if (res.data.success) {
+        alert("공고 등록 완료");
+        fetchJobs();
+      }
+    } catch (err) {
+      console.error("등록 실패:", err);
+      alert('등록에 실패했습니다.');
+    }
+  };
 
   return (
-    <div className="p-8">
-      {/* 상단 타이틀 + 신규 버튼 */}
+    <div className="p-8 h-full bg-gray-50">
+      {/* 타이틀 */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-800">공고 관리</h2>
-        <button className="bg-blue-100 text-blue-600 text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-200">
+        <button
+          onClick={handleCreate}
+          disabled={loading}
+          className="bg-blue-100 text-blue-600 text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-200 disabled:opacity-50"
+        >
           신규
         </button>
       </div>
 
-      {/* 2열 그리드 테이블 */}
-      <div className="p-4">
-        <div className="grid grid-cols-2 gap-4">
-          {filteredJobs.map((job) => (
+      {/* 로딩 상태 */}
+      {loading && (
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">로딩 중...</span>
+        </div>
+      )}
+
+      {/* 에러 메시지 */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          <p className="font-medium">오류 발생</p>
+          <p className="text-sm">{error}</p>
+          <button 
+            onClick={fetchJobs}
+            className="mt-2 text-sm underline hover:no-underline"
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
+
+      {/* 데이터 없음 */}
+      {!loading && !error && jobs.length === 0 && (
+        <div className="text-center py-12 text-gray-500">
+          등록된 공고가 없습니다.
+        </div>
+      )}
+
+      {/* 공고 목록 */}
+      {!loading && !error && jobs.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {jobs.map((job) => (
             <div
               key={job.id}
-              className="flex justify-between items-center border border-gray-100 bg-white rounded-md px-4 py-3 hover:bg-gray-50 transition"
+              className="bg-white p-4 rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => handleJobClick(job)}
             >
-              <div>
-                <div className="text-sm font-semibold text-gray-800">{job.company}</div>
-                <div className="text-sm text-gray-600">{job.title}</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {job.location} · {job.experience} · ~{job.deadline}
-                </div>
-              </div>
-              <div className="flex space-x-3">
-                <PencilIcon className="w-5 h-5 text-gray-400 hover:text-gray-700 cursor-pointer" />
-                <TrashIcon className="w-5 h-5 text-gray-400 hover:text-red-500 cursor-pointer" />
+              <h3 className="font-bold text-lg mb-2">{job.title}</h3>
+              <p className="text-gray-600">{job.company}</p>
+              <p className="text-sm text-gray-500">{job.location}</p>
+              <p className="text-sm text-gray-500">경력: {job.experience}</p>
+              <p className="text-sm text-gray-500">마감: {job.deadline}</p>
+              
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(job.id);
+                  }}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
               </div>
             </div>
           ))}
         </div>
-      </div>
-
-      {/* 검색창 */}
-      <div className="flex justify-end mt-6">
-        <div className="flex items-center border border-gray-300 rounded-full px-3 py-1 w-64">
-          <input
-            type="text"
-            placeholder="검색"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 text-sm outline-none"
-          />
-          <svg
-            className="w-4 h-4 text-gray-500"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
