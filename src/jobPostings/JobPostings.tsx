@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { BookmarkIcon } from "@heroicons/react/24/outline";
 import JobDetail from "./jopPostingComponents/JobDetail";
-import api from "../api/api"; // ✅ axios 인스턴스 가져오기
+import api from "../api/api";
 
 const JobPostings: React.FC = () => {
   const [filters, setFilters] = useState({
@@ -12,9 +12,30 @@ const JobPostings: React.FC = () => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedJob, setSelectedJob] = useState<any>(null);
-  const [jobListings, setJobListings] = useState<any[]>([]); // ✅ DB에서 가져온 공고 리스트 저장
+  const [jobListings, setJobListings] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const itemsPerPage = 7;
 
+  // ✅ 백엔드에서 데이터 가져오기
+  useEffect(() => {
+    const fetchJobs = async () => {
+      setIsLoading(true);
+      setError("");
+
+      try {
+        const response = await api.get("/api/jobposts");
+        console.log("📦 채용공고 조회:", response.data);
+        setJobListings(response.data);
+      } catch (err: any) {
+        console.error("❌ 채용공고 로딩 실패:", err.response?.data);
+        setError(err.response?.data?.message || "채용공고를 불러오는데 실패했습니다.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchJobs();
   }, []);
 
   const seoulDistricts = [
@@ -51,12 +72,20 @@ const JobPostings: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto py-6 px-4">
+        {/* 에러 메시지 */}
+        {error && (
+          <div className="mb-4 px-4 py-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+
         {/* 필터 UI */}
         <div className="flex flex-wrap items-center gap-4 mb-6 text-sm text-gray-700 ">
           <select
             value={filters.role}
             onChange={(e) => setFilters({ ...filters, role: e.target.value })}
             className="px-3 py-2"
+            disabled={isLoading}
           >
             <option value="">직무</option>
             <option value="프론트">프론트</option>
@@ -70,6 +99,7 @@ const JobPostings: React.FC = () => {
               setFilters({ ...filters, experience: e.target.value })
             }
             className="px-3 py-2"
+            disabled={isLoading}
           >
             <option value="">경력</option>
             <option value="신입">신입</option>
@@ -82,6 +112,7 @@ const JobPostings: React.FC = () => {
               setFilters({ ...filters, education: e.target.value })
             }
             className="px-3 py-2"
+            disabled={isLoading}
           >
             <option value="">학력</option>
             <option value="고졸">고졸</option>
@@ -95,6 +126,7 @@ const JobPostings: React.FC = () => {
               setFilters({ ...filters, location: e.target.value })
             }
             className="px-3 py-2"
+            disabled={isLoading}
           >
             <option value="">희망지역</option>
             {seoulDistricts.map((district) => (
@@ -105,61 +137,70 @@ const JobPostings: React.FC = () => {
           </select>
         </div>
 
-        {/* 리스트 */}
-        <div className="divide-y divide-gray-200">
-          {paginatedJobs.map((job) => (
-            <div
-              key={job.id}
-              className="flex justify-between items-center py-4 cursor-pointer hover:bg-gray-100 px-2 rounded-md transition"
-              onClick={() => setSelectedJob(job)}
-            >
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{job.companyName}</p>
-                <p className="text-sm text-gray-800">{job.title}</p>
-                <p className="text-sm text-gray-500">
-                  {job.careerLevel} / {job.education} / {job.location}
-                </p>
-              </div>
-              <div className="flex items-center space-x-3 text-sm text-gray-600">
-                <span>{job.startAt} - {job.endAt}</span>
-                <BookmarkIcon className="w-5 h-5 text-gray-600 cursor-pointer" />
-              </div>
+        {/* 로딩 중 */}
+        {isLoading ? (
+          <div className="text-center py-10 text-gray-600">
+            로딩 중...
+          </div>
+        ) : (
+          <>
+            {/* 리스트 */}
+            <div className="divide-y divide-gray-200">
+              {paginatedJobs.map((job) => (
+                <div
+                  key={job.id}
+                  className="flex justify-between items-center py-4 cursor-pointer hover:bg-gray-100 px-2 rounded-md transition"
+                  onClick={() => setSelectedJob(job)}
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{job.companyName}</p>
+                    <p className="text-sm text-gray-800">{job.title}</p>
+                    <p className="text-sm text-gray-500">
+                      {job.careerLevel} / {job.education} / {job.location}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-3 text-sm text-gray-600">
+                    <span>{job.startAt} - {job.endAt}</span>
+                    <BookmarkIcon className="w-5 h-5 text-gray-600 cursor-pointer" />
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* 페이지네이션 */}
-        <div className="flex justify-center space-x-2 mt-8">
-          <button
-            className="px-3 py-1 text-sm border border-gray-300 rounded"
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-          >
-            이전
-          </button>
+            {/* 페이지네이션 */}
+            <div className="flex justify-center space-x-2 mt-8">
+              <button
+                className="px-3 py-1 text-sm border border-gray-300 rounded"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                이전
+              </button>
 
-          {[...Array(totalPages)].map((_, i) => (
-            <button
-              key={i}
-              className={`px-3 py-1 text-sm border rounded ${
-                currentPage === i + 1
-                  ? "bg-gray-200 text-gray-700 border-gray-300"
-                  : "text-gray-500 border-gray-300"
-              }`}
-              onClick={() => setCurrentPage(i + 1)}
-            >
-              {i + 1}
-            </button>
-          ))}
+              {[...Array(totalPages)].map((_, i) => (
+                <button
+                  key={i}
+                  className={`px-3 py-1 text-sm border rounded ${
+                    currentPage === i + 1
+                      ? "bg-gray-200 text-gray-700 border-gray-300"
+                      : "text-gray-500 border-gray-300"
+                  }`}
+                  onClick={() => setCurrentPage(i + 1)}
+                >
+                  {i + 1}
+                </button>
+              ))}
 
-          <button
-            className="px-3 py-1 text-sm border border-gray-300 rounded"
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-          >
-            다음
-          </button>
-        </div>
+              <button
+                className="px-3 py-1 text-sm border border-gray-300 rounded"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                다음
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
