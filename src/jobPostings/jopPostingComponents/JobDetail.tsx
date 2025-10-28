@@ -112,6 +112,14 @@ const JobDetail: React.FC<JobDetailProps> = ({ jobId, onBack }) => {
     }
   }, [job]);
 
+  useEffect(() => {
+  const handleFavoriteChanged = () => {
+    if (job?.companyId) fetchFavoriteStatus();
+  };
+  window.addEventListener("favorite-changed", handleFavoriteChanged);
+  return () => window.removeEventListener("favorite-changed", handleFavoriteChanged);
+}, [job?.companyId]);  // job.companyId deps 추가
+
   // 북마크 클릭 (토글: 추가/삭제)
   const handleBookmarkClick = async () => {
     if (!job || isBookmarkProcessing) {

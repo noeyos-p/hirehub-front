@@ -40,57 +40,38 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
 
   // ✅ 회사 정보 + 리뷰 불러오기
   useEffect(() => {
-    const fetchCompanyData = async () => {
-      if (!companyName) return;
-      setIsLoading(true);
-      setError("");
-
-      try {
-        const companyRes = await api.get(`/api/companies/${encodeURIComponent(companyName)}`);
-        console.log("✅ CompanyDetail - 회사 정보:", companyRes.data);
-        setCompany(companyRes.data);
-
-        try {
-          const reviewRes = await api.get(`/api/reviews/company/${encodeURIComponent(companyName)}`);
-          setReviews(reviewRes.data);
-        } catch {
-          setReviews([]);
-        }
-      } catch (err: any) {
-        console.error("회사 정보 로딩 실패:", err?.response?.data || err);
-        setError("회사 정보를 불러오는데 실패했습니다.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+   const fetchCompanyData = async () => {
+  try {
+    const decodedName = decodeURIComponent(companyName || '');  // URL 디코딩 명시
+    console.log(`🔍 회사 이름 디코딩: ${decodedName}`);
+    const companyRes = await api.get(`/api/companies/${encodeURIComponent(decodedName)}`);
+    console.log("✅ 회사 데이터:", companyRes.data);
+    setCompany(companyRes.data);
+    if (companyRes.data?.id) {
+      fetchFavoriteStatus(companyRes.data.id);  // 즉시 호출
+    }
+  } catch (err: any) {
+    console.error("❌ 회사 로드 실패:", err.response?.data);
+    setError(err.response?.data?.message || "회사 정보를 불러오는데 실패했습니다.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
     fetchCompanyData();
   }, [companyName]);
 
   // ✅ 즐겨찾기 상태 확인 함수
   const fetchFavoriteStatus = async (companyId: number) => {
-    try {
-      console.log(`🔍 CompanyDetail - 즐겨찾기 상태 확인 중... (companyId: ${companyId})`);
-      const res = await api.get(`/api/mypage/favorites/companies`, {
-        params: { page: 0, size: 1000 },
-      });
-      
-      const rows = res.data?.items || res.data?.content || res.data?.rows || [];
-      console.log("📦 CompanyDetail - 즐겨찾기 목록:", rows);
-      
-      const exists = rows.some((r: any) => {
-        const match = Number(r.companyId) === Number(companyId);
-        console.log(`비교: r.companyId(${r.companyId}) === companyId(${companyId}) = ${match}`);
-        return match;
-      });
-      
-      console.log(`⭐ CompanyDetail - 최종 즐겨찾기 상태: ${exists}`);
-      setIsFavorited(exists);
-    } catch (err) {
-      console.error("즐겨찾기 상태 확인 실패:", err);
-      setIsFavorited(false);
-    }
-  };
+  try {
+    const res = await api.get(`/api/mypage/favorites/companies?page=0&size=1000`);
+    const items = res.data.content || res.data.rows || res.data.items || [];  // 응답 구조 통합
+    const exists = items.some((item: any) => parseInt(item.companyId, 10) === companyId);  // parseInt로 안전 변환
+    setIsFavorited(exists);
+  } catch (err) {
+    setIsFavorited(false);
+  }
+};
 
   // ✅ company.id가 설정되면 즐겨찾기 상태 확인
   useEffect(() => {
