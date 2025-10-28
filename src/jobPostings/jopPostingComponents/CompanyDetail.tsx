@@ -46,11 +46,10 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
       setError("");
 
       try {
-        // 1) 회사 정보 (이 이름으로 상세 가져오는 백엔드가 이미 있음)
         const companyRes = await api.get(`/api/companies/${encodeURIComponent(companyName)}`);
+        console.log("✅ CompanyDetail - 회사 정보:", companyRes.data);
         setCompany(companyRes.data);
 
-        // 2) 리뷰(옵션)
         try {
           const reviewRes = await api.get(`/api/reviews/company/${encodeURIComponent(companyName)}`);
           setReviews(reviewRes.data);
@@ -68,52 +67,83 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
     fetchCompanyData();
   }, [companyName]);
 
-  // ✅ 즐겨찾기 상태 확인: /api/mypage 쪽 목록에서 현재 company.id가 존재하는지 확인
+  // ✅ 즐겨찾기 상태 확인 함수
+  const fetchFavoriteStatus = async (companyId: number) => {
+    try {
+      console.log(`🔍 CompanyDetail - 즐겨찾기 상태 확인 중... (companyId: ${companyId})`);
+      const res = await api.get(`/api/mypage/favorites/companies`, {
+        params: { page: 0, size: 1000 },
+      });
+      
+      const rows = res.data?.items || res.data?.content || res.data?.rows || [];
+      console.log("📦 CompanyDetail - 즐겨찾기 목록:", rows);
+      
+      const exists = rows.some((r: any) => {
+        const match = Number(r.companyId) === Number(companyId);
+        console.log(`비교: r.companyId(${r.companyId}) === companyId(${companyId}) = ${match}`);
+        return match;
+      });
+      
+      console.log(`⭐ CompanyDetail - 최종 즐겨찾기 상태: ${exists}`);
+      setIsFavorited(exists);
+    } catch (err) {
+      console.error("즐겨찾기 상태 확인 실패:", err);
+      setIsFavorited(false);
+    }
+  };
+
+  // ✅ company.id가 설정되면 즐겨찾기 상태 확인
   useEffect(() => {
-    const fetchFavoriteStatus = async () => {
-      if (!company?.id) return;
-      try {
-        const res = await api.get(`/api/mypage/favorites/companies`, {
-          params: { page: 0, size: 1000 },
-        });
-        // 서버 응답은 PagedResponse<FavoriteCompanySummaryDto>
-        // { items: [{favoriteId, companyId, companyName, openPostCount}, ...], ... }
-        const rows = res.data?.items || res.data?.content || res.data?.rows || [];
-        const exists = rows.some((r: any) => Number(r.companyId) === Number(company.id));
-        setIsFavorited(exists);
-      } catch (err) {
-        console.error("즐겨찾기 상태 확인 실패:", err);
-        setIsFavorited(false);
+    if (company?.id) {
+      console.log(`🔄 CompanyDetail - company.id 변경됨: ${company.id}`);
+      fetchFavoriteStatus(company.id);
+    }
+  }, [company?.id]);
+
+  // ✅ 이벤트 리스너 등록 (다른 페이지에서 변경 감지)
+  useEffect(() => {
+    const handleFavoriteChanged = () => {
+      console.log("🔔 CompanyDetail - favorite-changed 이벤트 수신!");
+      if (company?.id) {
+        fetchFavoriteStatus(company.id);
       }
     };
 
-    fetchFavoriteStatus();
+    window.addEventListener("favorite-changed", handleFavoriteChanged);
+    console.log("✅ CompanyDetail - 이벤트 리스너 등록됨");
+
+    return () => {
+      window.removeEventListener("favorite-changed", handleFavoriteChanged);
+      console.log("❌ CompanyDetail - 이벤트 리스너 제거됨");
+    };
   }, [company?.id]);
 
-  // ✅ 즐겨찾기 토글 (경로를 /api/mypage 로 통일)
+  // ✅ 즐겨찾기 토글
   const handleFavoriteClick = async () => {
     if (!company || isFavoriteProcessing) return;
 
     setIsFavoriteProcessing(true);
     const prev = isFavorited;
 
+    console.log(`🔄 CompanyDetail - 즐겨찾기 토글 시작 (현재: ${prev})`);
+
     try {
       if (prev) {
-        // 해제: DELETE /api/mypage/favorites/companies/{companyId}
+        console.log(`🗑️ DELETE /api/mypage/favorites/companies/${company.id}`);
         await api.delete(`/api/mypage/favorites/companies/${company.id}`);
         setIsFavorited(false);
-        // 마이페이지 즐겨찾기 화면 새로고침 트리거
         window.dispatchEvent(new CustomEvent("favorite-changed"));
+        console.log("✅ 즐겨찾기 해제 완료 + 이벤트 발송");
       } else {
-        // 추가: POST /api/mypage/favorites/companies/{companyId}
+        console.log(`➕ POST /api/mypage/favorites/companies/${company.id}`);
         await api.post(`/api/mypage/favorites/companies/${company.id}`);
         setIsFavorited(true);
-        // 마이페이지 즐겨찾기 화면 새로고침 트리거
         window.dispatchEvent(new CustomEvent("favorite-changed"));
+        console.log("✅ 즐겨찾기 추가 완료 + 이벤트 발송");
       }
     } catch (err: any) {
       console.error("즐겨찾기 처리 실패:", err?.response?.data || err);
-      setIsFavorited(prev); // 롤백
+      setIsFavorited(prev);
       alert(
         err?.response?.status === 401
           ? "로그인이 필요합니다."
@@ -124,7 +154,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
     }
   };
 
-  // ✅ 리뷰 추가 (로컬)
+  // ✅ 리뷰 추가
   const handleAddReview = () => {
     if (!newReview.trim()) return;
     const newItem = {
@@ -137,7 +167,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
     setNewReview("");
   };
 
-  // ✅ 로딩 & 에러 핸들링
   if (isLoading) return <div className="text-center py-10 text-gray-600">로딩 중...</div>;
   if (error)
     return (
@@ -151,16 +180,13 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
 
   if (!company) return null;
 
-  // ✅ 메인 렌더링 (디자인 유지)
   return (
     <div className="max-w-6xl mx-auto py-6 px-4">
       <div className="bg-white rounded-lg shadow p-8">
-        {/* 뒤로가기 버튼 */}
         <button onClick={onBack} className="text-sm text-blue-600 mb-4 hover:underline">
           ← 목록으로 돌아가기
         </button>
 
-        {/* 회사명 및 즐겨찾기 */}
         <div className="flex items-center space-x-2 mb-2">
           <h1 className="text-2xl font-semibold">{company.name}</h1>
           <button
@@ -179,10 +205,8 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
           </button>
         </div>
 
-        {/* 회사 소개 */}
         <p className="text-gray-600 mb-6">{company.description}</p>
 
-        {/* 회사 정보 */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-700 mb-6">
           <div>
             <p className="text-gray-500">주소</p>
@@ -210,12 +234,10 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
           </div>
         </div>
 
-        {/* 회사 사진 */}
         <div className="w-full h-80 bg-gray-200 flex items-center justify-center text-gray-500 text-sm rounded-lg mb-6">
           기업 사진
         </div>
 
-        {/* 리뷰 작성 */}
         <div className="flex items-center border border-gray-300 rounded-full px-4 py-2 mb-8 max-w-md">
           <input
             type="text"
@@ -229,7 +251,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
           </button>
         </div>
 
-        {/* 리뷰 목록 */}
         <div className="space-y-6 mb-8">
           {reviews.map((review) => (
             <div key={review.id} className="flex items-start space-x-3">
