@@ -1,26 +1,32 @@
-// src/myPage/applies/AppliedNotices.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../api/api";
 
 type ApplyItem = {
-  id: number;
-  companyName: string;     // 회사명 (백엔드: a.getJobPosts().getCompany().getName())
-  resumeTitle: string;     // 이 지원 시 사용한 이력서 제목 (백엔드: a.getResume().getTitle())
-  applyAt: string;         // 지원일 ISO (백엔드: a.getApplyAt())
+  id: number;                 // apply id
+  resumeId: number | null;    // ✅ 백에서 추가된 필드
+  companyName: string;
+  resumeTitle: string;
+  appliedAt: string;          // ✅ 필드명 주의(백: appliedAt = LocalDate)
 };
 
 const yoil = ["일", "월", "화", "수", "목", "금", "토"];
-const prettyMDW = (iso?: string) => {
+const prettyDateTime = (iso?: string) => {
   if (!iso) return "-";
-  const d = new Date(iso);
+  // 백은 LocalDate만 내려오므로 시간은 00:00 표시
+  const d = new Date(`${iso}T00:00:00`);
   if (isNaN(d.getTime())) return "-";
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   const w = yoil[d.getDay()];
-  return `${mm}.${dd}(${w})`;
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${y}.${m}.${dd}(${w}) ${hh}:${mm}`;
 };
 
 const AppliedNotices: React.FC = () => {
+  const navigate = useNavigate();
   const [items, setItems] = useState<ApplyItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,14 +45,10 @@ const AppliedNotices: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchApplies();
-  }, []);
+  useEffect(() => { fetchApplies(); }, []);
 
   const handleCheckboxChange = (id: number) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
-    );
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]);
   };
 
   const allSelected = useMemo(
@@ -56,13 +58,16 @@ const AppliedNotices: React.FC = () => {
 
   const handleSelectAll = () => {
     if (allSelected) setSelectedIds([]);
-    else setSelectedIds(items.map((n) => n.id));
+    else setSelectedIds(items.map(n => n.id));
   };
 
+  // ✅ 이력서 보기 -> ResumeViewer로 이동
   const handleOpenResume = (row: ApplyItem) => {
-    // 백엔드 응답에 resumeId가 아직 없으므로 우선 이력서 목록으로 이동
-    // (resumeId 추가되면 `/myPage/resume/ResumeDetail?id=${resumeId}` 로 변경)
-    window.location.href = "/myPage/resume";
+    if (!row.resumeId) {
+      alert("이 지원 건의 이력서 ID를 찾을 수 없습니다.");
+      return;
+    }
+    navigate(`/myPage/resume/ResumeViewer/${row.resumeId}`);
   };
 
   return (
@@ -83,10 +88,7 @@ const AppliedNotices: React.FC = () => {
       ) : (
         <div className="space-y-5">
           {items.map((notice) => (
-            <div
-              key={notice.id}
-              className="flex items-center justify-between border-b border-gray-200 pb-4"
-            >
+            <div key={notice.id} className="flex items-center justify-between border-b border-gray-200 pb-4">
               <div className="flex items-start gap-3">
                 <input
                   type="checkbox"
@@ -96,12 +98,9 @@ const AppliedNotices: React.FC = () => {
                   disabled={loading}
                 />
                 <div>
-                  <div className="text-gray-900 font-semibold">
-                    {notice.companyName}
-                  </div>
-                  {/* 디자인의 '공고 제목' 자리에 현재 스키마상 이력서 제목을 표시 */}
+                  <div className="text-gray-900 font-semibold">{notice.companyName}</div>
+                  {/* 디자인의 '공고 제목' 자리에 '지원 당시 이력서 제목'을 노출 */}
                   <div className="text-gray-700 mt-1">{notice.resumeTitle}</div>
-                  {/* 요약 정보는 백엔드 응답에 없으므로 비워두거나 필요시 보강 */}
                   <div className="text-sm text-gray-500 mt-1">-</div>
                 </div>
               </div>
@@ -115,7 +114,8 @@ const AppliedNotices: React.FC = () => {
                   이력서 보기
                 </button>
                 <span className="text-sm text-gray-500">
-                  - {prettyMDW(notice.applyAt)}
+                  {/* ✅ 년/월/일/시간(00:00) */}
+                  - {prettyDateTime(notice.appliedAt)}
                 </span>
               </div>
             </div>
