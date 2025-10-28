@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api/api';
+import { useAuth } from '../../hooks/useAuth';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -8,6 +9,7 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login, checkAuth } = useAuth(); // useAuth 훅 추가
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,14 +29,18 @@ const Login: React.FC = () => {
       if (accessToken) {
         // 토큰, role, 이메일 저장
         localStorage.setItem('token', accessToken);
-        localStorage.setItem('role', role || 'USER'); // role이 없으면 기본값 USER
+        localStorage.setItem('role', role || 'USER');
         localStorage.setItem('email', userEmail || email);
+        localStorage.setItem('userId', String(userId));
         
         console.log('🔑 로그인 성공');
         console.log('- 토큰:', accessToken.substring(0, 20) + '...');
         console.log('- Role:', role);
         console.log('- Email:', userEmail || email);
-        localStorage.setItem('userId', String(userId));
+
+        // ✅ 즉시 인증 상태 갱신
+        login(accessToken);
+        await checkAuth();
 
         // role에 따라 페이지 이동
         if (role === 'ADMIN') {
