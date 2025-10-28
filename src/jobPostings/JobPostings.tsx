@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { BookmarkIcon } from "@heroicons/react/24/outline";
+import { BookmarkIcon, StarIcon } from "@heroicons/react/24/outline";
+import { BookmarkIcon as BookmarkSolidIcon, StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import JobDetail from "./jopPostingComponents/JobDetail";
 import api from "../api/api";
 
@@ -11,13 +12,15 @@ const JobPostings: React.FC = () => {
     location: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [jobListings, setJobListings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [favoritedCompanies, setFavoritedCompanies] = useState<Set<number>>(new Set());
+  const [scrappedJobs, setScrappedJobs] = useState<Set<number>>(new Set());
   const itemsPerPage = 7;
 
-  // ✅ 백엔드에서 데이터 가져오기
+  // ✅ 백엔드에서 채용공고 데이터 가져오기
   useEffect(() => {
     const fetchJobs = async () => {
       setIsLoading(true);
@@ -37,6 +40,130 @@ const JobPostings: React.FC = () => {
 
     fetchJobs();
   }, []);
+
+  // ✅ 기업 즐겨찾기 목록 가져오기
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      try {
+        const res = await api.get("/api/mypage/favorites/companies?page=0&size=1000");
+        console.log("⭐ 즐겨찾기 기업 목록:", res.data);
+
+        const items = res.data.rows || res.data.content || [];
+        const companyIds = new Set<number>(
+          items.map((item: any) => Number(item.companyId)).filter((id: number) => !isNaN(id))
+        );
+        setFavoritedCompanies(companyIds);
+      } catch (err: any) {
+        console.error("❌ 즐겨찾기 목록 로딩 실패:", err);
+        if (err.response?.status !== 401) {
+          setFavoritedCompanies(new Set());
+        }
+      }
+    };
+
+    fetchFavorites();
+  }, []);
+
+  // ✅ 스크랩된 공고 목록 가져오기
+  useEffect(() => {
+    const fetchScrappedJobs = async () => {
+      try {
+        const res = await api.get("/api/mypage/favorites/jobposts?page=0&size=1000");
+        console.log("📌 스크랩된 공고 목록:", res.data);
+
+        const items = res.data.rows || res.data.content || [];
+        const jobIds = new Set<number>(
+          items.map((item: any) => Number(item.jobPostId)).filter((id: number) => !isNaN(id))
+        );
+        setScrappedJobs(jobIds);
+      } catch (err: any) {
+        console.error("❌ 스크랩 목록 로딩 실패:", err);
+        if (err.response?.status !== 401) {
+          setScrappedJobs(new Set());
+        }
+      }
+    };
+
+    fetchScrappedJobs();
+  }, []);
+
+  // ✅ 기업 즐겨찾기 토글
+  const handleFavoriteClick = async (e: React.MouseEvent, companyId: number) => {
+    e.stopPropagation();
+
+    const isFavorited = favoritedCompanies.has(companyId);
+    console.log(`⭐ 즐겨찾기 토글 - Company ${companyId}, 현재: ${isFavorited}`);
+
+    try {
+      if (isFavorited) {
+        const res = await api.delete(`/api/mypage/favorites/companies/${companyId}`);
+        if (res.status === 204 || res.status === 200) {
+          setFavoritedCompanies(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(companyId);
+            return newSet;
+          });
+          alert("기업 즐겨찾기가 해제되었습니다.");
+        }
+      } else {
+        const res = await api.post(`/api/mypage/favorites/companies/${companyId}`);
+        if (res.status === 200 && res.data) {
+          setFavoritedCompanies(prev => new Set(prev).add(companyId));
+          alert("기업을 즐겨찾기에 추가했습니다.");
+        }
+      }
+    } catch (err: any) {
+      console.error("❌ 즐겨찾기 처리 실패:", err);
+      
+      let errorMsg = "즐겨찾기 처리에 실패했습니다.";
+      if (err.response?.status === 401) {
+        errorMsg = "로그인이 필요합니다.";
+      } else if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      }
+      
+      alert(errorMsg);
+    }
+  };
+
+  // ✅ 공고 스크랩 토글
+  const handleBookmarkClick = async (e: React.MouseEvent, jobId: number) => {
+    e.stopPropagation();
+
+    const isScrapped = scrappedJobs.has(jobId);
+    console.log(`📌 스크랩 토글 - Job ${jobId}, 현재: ${isScrapped}`);
+
+    try {
+      if (isScrapped) {
+        const res = await api.delete(`/api/mypage/favorites/jobposts/${jobId}`);
+        if (res.status === 204 || res.status === 200) {
+          setScrappedJobs(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(jobId);
+            return newSet;
+          });
+          alert("북마크가 해제되었습니다.");
+        }
+      } else {
+        const res = await api.post(`/api/mypage/favorites/jobposts/${jobId}`);
+        if (res.status === 200 && res.data) {
+          setScrappedJobs(prev => new Set(prev).add(jobId));
+          alert("북마크에 저장되었습니다.");
+        }
+      }
+    } catch (err: any) {
+      console.error("❌ 스크랩 처리 실패:", err);
+      
+      let errorMsg = "북마크 처리에 실패했습니다.";
+      if (err.response?.status === 401) {
+        errorMsg = "로그인이 필요합니다.";
+      } else if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      }
+      
+      alert(errorMsg);
+    }
+  };
 
   const seoulDistricts = [
     "강남구", "강동구", "강북구", "강서구", "관악구",
@@ -61,10 +188,10 @@ const JobPostings: React.FC = () => {
     currentPage * itemsPerPage
   );
 
-  if (selectedJob) {
+  if (selectedJobId) {
     return (
       <div className="max-w-6xl mx-auto py-6 px-4">
-        <JobDetail job={selectedJob} onBack={() => setSelectedJob(null)} />
+        <JobDetail jobId={selectedJobId} onBack={() => setSelectedJobId(null)} />
       </div>
     );
   }
@@ -149,19 +276,51 @@ const JobPostings: React.FC = () => {
               {paginatedJobs.map((job) => (
                 <div
                   key={job.id}
-                  className="flex justify-between items-center py-4 cursor-pointer hover:bg-gray-100 px-2 rounded-md transition"
-                  onClick={() => setSelectedJob(job)}
+                  className="flex justify-between items-center py-4 hover:bg-gray-100 px-2 rounded-md transition"
                 >
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{job.companyName}</p>
+                  {/* 왼쪽: 회사명 + 별 아이콘 + 공고 정보 */}
+                  <div 
+                    className="flex-1 cursor-pointer"
+                    onClick={() => setSelectedJobId(job.id)}
+                  >
+                    <div className="flex items-center space-x-2 mb-1">
+                      <p className="text-sm font-semibold text-gray-900">{job.companyName}</p>
+                      
+                      {/* 기업 즐겨찾기 별 아이콘 */}
+                      <button
+                        onClick={(e) => handleFavoriteClick(e, job.companyId)}
+                        className="transition-all hover:scale-110"
+                        title={favoritedCompanies.has(job.companyId) ? "즐겨찾기 해제" : "즐겨찾기"}
+                      >
+                        {favoritedCompanies.has(job.companyId) ? (
+                          <StarSolidIcon className="w-4 h-4 text-yellow-500" />
+                        ) : (
+                          <StarIcon className="w-4 h-4 text-gray-400 hover:text-yellow-500" />
+                        )}
+                      </button>
+                    </div>
                     <p className="text-sm text-gray-800">{job.title}</p>
                     <p className="text-sm text-gray-500">
                       {job.careerLevel} / {job.education} / {job.location}
                     </p>
                   </div>
+
+                  {/* 오른쪽: 날짜 + 북마크 */}
                   <div className="flex items-center space-x-3 text-sm text-gray-600">
                     <span>{job.startAt} - {job.endAt}</span>
-                    <BookmarkIcon className="w-5 h-5 text-gray-600 cursor-pointer" />
+                    
+                    {/* 공고 스크랩 북마크 아이콘 */}
+                    <button
+                      onClick={(e) => handleBookmarkClick(e, job.id)}
+                      className="transition-all hover:scale-110"
+                      title={scrappedJobs.has(job.id) ? "북마크 해제" : "북마크 추가"}
+                    >
+                      {scrappedJobs.has(job.id) ? (
+                        <BookmarkSolidIcon className="w-5 h-5 text-yellow-500" />
+                      ) : (
+                        <BookmarkIcon className="w-5 h-5 text-gray-600 hover:text-yellow-500" />
+                      )}
+                    </button>
                   </div>
                 </div>
               ))}

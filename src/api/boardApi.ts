@@ -7,7 +7,7 @@ export interface BoardListResponse {
   content: string;
   usersId: number;
   usersName: string;
-  usersNickname: string;
+  nickname: string;
   usersProfileImage: string | null;
   createAt: string;
   updateAt: string | null;
@@ -20,7 +20,7 @@ export interface CommentResponse {
   content: string;
   usersId: number;
   usersName: string;
-  usersNickname: string;
+  nickname: string;
   usersProfileImage: string | null;
   boardId: number;
   parentCommentId: number | null;
