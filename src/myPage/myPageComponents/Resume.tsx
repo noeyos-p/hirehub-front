@@ -102,12 +102,13 @@ const Resume = () => {
     }
   };
 
+  // ✅ 잠금 여부에 따라 수정/조회 라우팅 분기
   const handleEdit = (id: number, locked: boolean) => {
     if (locked) {
-      // 잠긴 이력서는 조회 모드로
+      // 잠긴 이력서는 조회 전용 페이지로
       navigate(`/myPage/resume/ResumeViewer/${id}`);
     } else {
-      // 잠기지 않은 이력서는 수정 모드로
+      // 잠기지 않은 이력서는 수정 페이지로
       navigate(`/myPage/resume/ResumeDetail?id=${id}`);
     }
   };
@@ -181,7 +182,11 @@ const Resume = () => {
 
             <div className="flex flex-col items-end gap-2">
               <button
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm px-4 py-1.5 rounded-md"
+                className={`text-sm px-4 py-1.5 rounded-md ${
+                  resume.locked
+                    ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                }`}
                 onClick={() => handleEdit(resume.id, resume.locked)}
                 disabled={loading}
               >
@@ -209,8 +214,6 @@ const Resume = () => {
           삭제
         </button>
       </div>
-
-
     </div>
   );
 };
