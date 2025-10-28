@@ -131,8 +131,7 @@ const Login: React.FC = () => {
               <img
                 alt="Google logo"
                 className="w-7 h-7 mr-3"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6YBO-cORHIn6I-QMnAUmnqXHa1nDAMQNBHV41slgiW-7zdmgfm6Qji0s2RwShUhRiK5j_SUteYlB1GzeHzEZiBmRA4j7qgoBBQS9VRFlY-agw15MB6wqwwzjAPzS-wvFT0vKCZHbOJQRUVOYvR0Pla-FOALMX4teVCgsU-vM2qpx5IKpC5E6ZiwGiFKW7HtIF4YDRCRbmUZOis-DIITME-QrJQAtsAfNnWtzqdyesIH84ggOtKJcxbVHb80_NUeC7DL6ZTIL4S0Q"
-              />
+                src='/google_logo_icon_169090.png'              />
               <span>Google</span>
             </button>
           </div>
