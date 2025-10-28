@@ -219,14 +219,6 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
   );
 };
 
-interface PageResponse {
-  content: Post[];
-  totalPages: number;
-  totalElements: number;
-  size: number;
-  number: number;
-}
-
 const BoardManagement: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -234,7 +226,6 @@ const BoardManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
