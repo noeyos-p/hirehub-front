@@ -18,82 +18,72 @@ const JobPostings: React.FC = () => {
   const [error, setError] = useState("");
   const [favoritedCompanies, setFavoritedCompanies] = useState<Set<number>>(new Set());
   const [scrappedJobs, setScrappedJobs] = useState<Set<number>>(new Set());
-  const itemsPerPage = 7;
+  const itemsPerPage = 10;
 
-  // ✅ 백엔드에서 채용공고 데이터 가져오기
+  const fetchFavorites = async () => {
+    try {
+      const res = await api.get("/api/mypage/favorites/companies?page=0&size=1000");
+      const items = res.data.rows || res.data.content || res.data.items || [];
+      const companyIds = new Set<number>(
+        items.map((item: any) => Number(item.companyId)).filter((id: number) => !isNaN(id))
+      );
+      setFavoritedCompanies(companyIds);
+    } catch (err: any) {
+      console.error("❌ 즐겨찾기 목록 로딩 실패:", err);
+      if (err.response?.status !== 401) {
+        setFavoritedCompanies(new Set());
+      }
+    }
+  };
+
   useEffect(() => {
     const fetchJobs = async () => {
       setIsLoading(true);
       setError("");
-
       try {
         const response = await api.get("/api/jobposts");
-        console.log("📦 채용공고 조회:", response.data);
         setJobListings(response.data);
       } catch (err: any) {
-        console.error("❌ 채용공고 로딩 실패:", err.response?.data);
         setError(err.response?.data?.message || "채용공고를 불러오는데 실패했습니다.");
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchJobs();
   }, []);
 
-  // ✅ 기업 즐겨찾기 목록 가져오기
   useEffect(() => {
-    const fetchFavorites = async () => {
-      try {
-        const res = await api.get("/api/mypage/favorites/companies?page=0&size=1000");
-        console.log("⭐ 즐겨찾기 기업 목록:", res.data);
-
-        const items = res.data.rows || res.data.content || [];
-        const companyIds = new Set<number>(
-          items.map((item: any) => Number(item.companyId)).filter((id: number) => !isNaN(id))
-        );
-        setFavoritedCompanies(companyIds);
-      } catch (err: any) {
-        console.error("❌ 즐겨찾기 목록 로딩 실패:", err);
-        if (err.response?.status !== 401) {
-          setFavoritedCompanies(new Set());
-        }
-      }
-    };
-
     fetchFavorites();
+    const handleFavoriteChanged = () => {
+      fetchFavorites();
+    };
+    window.addEventListener("favorite-changed", handleFavoriteChanged);
+    return () => {
+      window.removeEventListener("favorite-changed", handleFavoriteChanged);
+    };
   }, []);
 
-  // ✅ 스크랩된 공고 목록 가져오기
   useEffect(() => {
     const fetchScrappedJobs = async () => {
       try {
         const res = await api.get("/api/mypage/favorites/jobposts?page=0&size=1000");
-        console.log("📌 스크랩된 공고 목록:", res.data);
-
         const items = res.data.rows || res.data.content || [];
         const jobIds = new Set<number>(
           items.map((item: any) => Number(item.jobPostId)).filter((id: number) => !isNaN(id))
         );
         setScrappedJobs(jobIds);
       } catch (err: any) {
-        console.error("❌ 스크랩 목록 로딩 실패:", err);
         if (err.response?.status !== 401) {
           setScrappedJobs(new Set());
         }
       }
     };
-
     fetchScrappedJobs();
   }, []);
 
-  // ✅ 기업 즐겨찾기 토글
   const handleFavoriteClick = async (e: React.MouseEvent, companyId: number) => {
     e.stopPropagation();
-
     const isFavorited = favoritedCompanies.has(companyId);
-    console.log(`⭐ 즐겨찾기 토글 - Company ${companyId}, 현재: ${isFavorited}`);
-
     try {
       if (isFavorited) {
         const res = await api.delete(`/api/mypage/favorites/companies/${companyId}`);
@@ -103,36 +93,31 @@ const JobPostings: React.FC = () => {
             newSet.delete(companyId);
             return newSet;
           });
+          window.dispatchEvent(new CustomEvent("favorite-changed"));
           alert("기업 즐겨찾기가 해제되었습니다.");
         }
       } else {
         const res = await api.post(`/api/mypage/favorites/companies/${companyId}`);
         if (res.status === 200 && res.data) {
           setFavoritedCompanies(prev => new Set(prev).add(companyId));
+          window.dispatchEvent(new CustomEvent("favorite-changed"));
           alert("기업을 즐겨찾기에 추가했습니다.");
         }
       }
     } catch (err: any) {
-      console.error("❌ 즐겨찾기 처리 실패:", err);
-      
       let errorMsg = "즐겨찾기 처리에 실패했습니다.";
       if (err.response?.status === 401) {
         errorMsg = "로그인이 필요합니다.";
       } else if (err.response?.data?.message) {
         errorMsg = err.response.data.message;
       }
-      
       alert(errorMsg);
     }
   };
 
-  // ✅ 공고 스크랩 토글
   const handleBookmarkClick = async (e: React.MouseEvent, jobId: number) => {
     e.stopPropagation();
-
     const isScrapped = scrappedJobs.has(jobId);
-    console.log(`📌 스크랩 토글 - Job ${jobId}, 현재: ${isScrapped}`);
-
     try {
       if (isScrapped) {
         const res = await api.delete(`/api/mypage/favorites/jobposts/${jobId}`);
@@ -152,15 +137,12 @@ const JobPostings: React.FC = () => {
         }
       }
     } catch (err: any) {
-      console.error("❌ 스크랩 처리 실패:", err);
-      
       let errorMsg = "북마크 처리에 실패했습니다.";
       if (err.response?.status === 401) {
         errorMsg = "로그인이 필요합니다.";
       } else if (err.response?.data?.message) {
         errorMsg = err.response.data.message;
       }
-      
       alert(errorMsg);
     }
   };
@@ -173,7 +155,6 @@ const JobPostings: React.FC = () => {
     "용산구", "은평구", "종로구", "중구", "중랑구",
   ];
 
-  // ✅ 필터
   const filteredJobs = jobListings.filter(
     (job) =>
       (filters.role ? job.title.includes(filters.role) : true) &&
@@ -199,14 +180,12 @@ const JobPostings: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto py-6 px-4">
-        {/* 에러 메시지 */}
         {error && (
           <div className="mb-4 px-4 py-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
             {error}
           </div>
         )}
 
-        {/* 필터 UI */}
         <div className="flex flex-wrap items-center gap-4 mb-6 text-sm text-gray-700 ">
           <select
             value={filters.role}
@@ -222,9 +201,7 @@ const JobPostings: React.FC = () => {
 
           <select
             value={filters.experience}
-            onChange={(e) =>
-              setFilters({ ...filters, experience: e.target.value })
-            }
+            onChange={(e) => setFilters({ ...filters, experience: e.target.value })}
             className="px-3 py-2"
             disabled={isLoading}
           >
@@ -235,9 +212,7 @@ const JobPostings: React.FC = () => {
 
           <select
             value={filters.education}
-            onChange={(e) =>
-              setFilters({ ...filters, education: e.target.value })
-            }
+            onChange={(e) => setFilters({ ...filters, education: e.target.value })}
             className="px-3 py-2"
             disabled={isLoading}
           >
@@ -249,9 +224,7 @@ const JobPostings: React.FC = () => {
 
           <select
             value={filters.location}
-            onChange={(e) =>
-              setFilters({ ...filters, location: e.target.value })
-            }
+            onChange={(e) => setFilters({ ...filters, location: e.target.value })}
             className="px-3 py-2"
             disabled={isLoading}
           >
@@ -264,29 +237,22 @@ const JobPostings: React.FC = () => {
           </select>
         </div>
 
-        {/* 로딩 중 */}
         {isLoading ? (
-          <div className="text-center py-10 text-gray-600">
-            로딩 중...
-          </div>
+          <div className="text-center py-10 text-gray-600">로딩 중...</div>
         ) : (
           <>
-            {/* 리스트 */}
             <div className="divide-y divide-gray-200">
               {paginatedJobs.map((job) => (
                 <div
                   key={job.id}
                   className="flex justify-between items-center py-4 hover:bg-gray-100 px-2 rounded-md transition"
                 >
-                  {/* 왼쪽: 회사명 + 별 아이콘 + 공고 정보 */}
                   <div 
                     className="flex-1 cursor-pointer"
                     onClick={() => setSelectedJobId(job.id)}
                   >
                     <div className="flex items-center space-x-2 mb-1">
                       <p className="text-sm font-semibold text-gray-900">{job.companyName}</p>
-                      
-                      {/* 기업 즐겨찾기 별 아이콘 */}
                       <button
                         onClick={(e) => handleFavoriteClick(e, job.companyId)}
                         className="transition-all hover:scale-110"
@@ -305,11 +271,8 @@ const JobPostings: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* 오른쪽: 날짜 + 북마크 */}
                   <div className="flex items-center space-x-3 text-sm text-gray-600">
                     <span>{job.startAt} - {job.endAt}</span>
-                    
-                    {/* 공고 스크랩 북마크 아이콘 */}
                     <button
                       onClick={(e) => handleBookmarkClick(e, job.id)}
                       className="transition-all hover:scale-110"
@@ -326,36 +289,65 @@ const JobPostings: React.FC = () => {
               ))}
             </div>
 
-            {/* 페이지네이션 */}
-            <div className="flex justify-center space-x-2 mt-8">
+            <div className="flex justify-center items-center space-x-1 mt-8">
               <button
-                className="px-3 py-1 text-sm border border-gray-300 rounded"
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+              >
+                «
+              </button>
+
+              <button
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
-                이전
+                ‹
               </button>
 
-              {[...Array(totalPages)].map((_, i) => (
-                <button
-                  key={i}
-                  className={`px-3 py-1 text-sm border rounded ${
-                    currentPage === i + 1
-                      ? "bg-gray-200 text-gray-700 border-gray-300"
-                      : "text-gray-500 border-gray-300"
-                  }`}
-                  onClick={() => setCurrentPage(i + 1)}
-                >
-                  {i + 1}
-                </button>
-              ))}
+              {(() => {
+                const pages = [];
+                const maxVisible = 5;
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                
+                if (endPage - startPage + 1 < maxVisible) {
+                  startPage = Math.max(1, endPage - maxVisible + 1);
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      className={`px-3 py-1 text-sm border rounded transition-colors ${
+                        currentPage === i
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "text-gray-700 border-gray-300 hover:bg-gray-100"
+                      }`}
+                      onClick={() => setCurrentPage(i)}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+                return pages;
+              })()}
 
               <button
-                className="px-3 py-1 text-sm border border-gray-300 rounded"
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
               >
-                다음
+                ›
+              </button>
+
+              <button
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                »
               </button>
             </div>
           </>
