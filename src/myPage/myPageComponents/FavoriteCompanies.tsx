@@ -1,6 +1,6 @@
 // src/myPage/favorite/FavoriteCompanies.tsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import api from "../../api/api";
 
 /** 서버 응답 DTO */
@@ -35,15 +35,6 @@ type JobPostLite = {
   status?: string;
   isOpen?: boolean;
 };
-
-/** ✅ 프로젝트 라우트에 맞게 “우선순위” 경로만 필요 시 수정 */
-const JOB_DETAIL_PATHS = (id: number) => [
-  `/jobposts/${id}`, // 1순위: 보통 백엔드 엔드포인트와 맞춤
-  `/jobs/${id}`,     // 2순위: 다른 팀이 쓰는 패턴
-];
-
-/** 리스트/보드에서 상세를 prop 기반으로 여는 경우를 대비한 Fallback */
-const JOB_BOARD_WITH_QS = (id: number) => `/jobs?id=${id}`;
 
 const yoil = ["일", "월", "화", "수", "목", "금", "토"];
 const prettyMDW = (iso?: string) => {
@@ -244,20 +235,9 @@ const FavoriteCompanies: React.FC = () => {
     setLoadingPosts(false);
   };
 
-  /** ✅ 상세 이동 유틸: 라우트 우선, 실패 대비 fallback + 이벤트 */
-  const goJobDetail = (id: number) => {
-    // 1) 팀에서 쓰는 라우트로 이동
-    const [p1, p2] = JOB_DETAIL_PATHS(id);
-    // react-router는 존재하지 않는 라우트로 가도 에러를 내지 않으니
-    // 동시에 fallback도 던져준다.
-    navigate(p1);
-    // 보조 네비게이션(필요시 주석 해제)
-    // setTimeout(() => navigate(p2), 0);
-
-    // 2) 리스트/보드가 prop로 상세 여는 구조라면 대비
-    window.dispatchEvent(new CustomEvent("open-job-detail", { detail: { id } }));
-    // 3) 최후 fallback: 쿼리스트링으로 전달
-    navigate(JOB_BOARD_WITH_QS(id), { replace: false });
+  /** ✅ 공고 상세로 이동 - 프로젝트 라우팅 구조에 맞춤 */
+  const goJobDetail = (jobId: number) => {
+    navigate(`/jobPostings/${jobId}`);
   };
 
   return (
@@ -317,14 +297,10 @@ const FavoriteCompanies: React.FC = () => {
                       <ul className="space-y-2">
                         {postsToShow.map((p) => (
                           <li key={p.id}>
-                            {/* ✅ Link + onClick 모두: 라우트/이벤트/쿼리 fallback 동시 지원 */}
-                            <Link
-                              to={JOB_DETAIL_PATHS(p.id)[0]}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                goJobDetail(p.id);
-                              }}
-                              className="flex items-center justify-between bg-white rounded-md px-3 py-2 border hover:border-gray-300 cursor-pointer"
+                            {/* ✅ 프로젝트 라우팅에 맞게 수정 */}
+                            <div
+                              onClick={() => goJobDetail(p.id)}
+                              className="flex items-center justify-between bg-white rounded-md px-3 py-2 border hover:border-gray-300 cursor-pointer transition-colors"
                               title="채용 상세 보기"
                             >
                               <div className="min-w-0">
@@ -336,7 +312,7 @@ const FavoriteCompanies: React.FC = () => {
                               <div className="text-xs text-gray-600">
                                 {p.endAt ? `마감: ${prettyMDW(p.endAt)}` : ""}
                               </div>
-                            </Link>
+                            </div>
                           </li>
                         ))}
                       </ul>
