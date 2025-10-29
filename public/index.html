@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>실시간 채팅 앱</title>
+
+    <!-- sockjs-client 오류 방지: global, process 정의 (필수!) -->
+    <script>
+      // Vite가 번들링하기 전에 global을 정의
+      window.global = window;
+      window.process = window.process || { env: { NODE_ENV: 'development' } };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
