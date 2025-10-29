@@ -6,7 +6,7 @@ import api from "../api/api";
 
 const JobPostings: React.FC = () => {
   const [filters, setFilters] = useState({
-    role: "",
+    position: "",
     experience: "",
     education: "",
     location: "",
@@ -157,12 +157,12 @@ const JobPostings: React.FC = () => {
 
   const filteredJobs = jobListings.filter(
     (job) =>
-      (filters.role ? job.title.includes(filters.role) : true) &&
+      (filters.position ? job.position === (filters.position) : true) &&
       (filters.experience ? job.careerLevel === filters.experience : true) &&
       (filters.education ? job.education === filters.education : true) &&
       (filters.location ? job.location.includes(filters.location) : true)
   );
-
+ 
   const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
   const paginatedJobs = filteredJobs.slice(
     (currentPage - 1) * itemsPerPage,
@@ -188,8 +188,8 @@ const JobPostings: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-4 mb-6 text-sm text-gray-700 ">
           <select
-            value={filters.role}
-            onChange={(e) => setFilters({ ...filters, role: e.target.value })}
+            value={filters.position}
+            onChange={(e) => setFilters({ ...filters, position: e.target.value })}
             className="px-3 py-2"
             disabled={isLoading}
           >
@@ -267,7 +267,7 @@ const JobPostings: React.FC = () => {
                     </div>
                     <p className="text-sm text-gray-800">{job.title}</p>
                     <p className="text-sm text-gray-500">
-                      {job.careerLevel} / {job.education} / {job.location}
+                      {job.careerLevel} / {job.education} / {job.location} / {job.position}
                     </p>
                   </div>
 

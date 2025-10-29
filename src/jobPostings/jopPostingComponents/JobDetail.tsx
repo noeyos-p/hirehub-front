@@ -425,7 +425,7 @@ const ApplyModal = () => (
               </div>
               <div>
                 <p className="text-gray-500">직무</p>
-                <p>{job.role}</p>
+                <p>{job.position}</p>
               </div>
               <div>
                 <p className="text-gray-500">학력</p>
