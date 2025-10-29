@@ -10,7 +10,7 @@ const JobPostings: React.FC = () => {
   const searchQuery = searchParams.get('search') || '';
 
   const [filters, setFilters] = useState({
-    role: "",
+    position: "",
     experience: "",
     education: "",
     location: "",
@@ -168,12 +168,13 @@ const JobPostings: React.FC = () => {
   const filteredJobs = jobListings.filter(
     (job) => {
       const matchesSearch = !searchQuery || 
+        job.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.location.toLowerCase().includes(searchQuery.toLowerCase());
       
       return matchesSearch &&
-        (filters.role ? job.title.includes(filters.role) : true) &&
+        (filters.position ? job.title.includes(filters.position) : true) &&
         (filters.experience ? job.careerLevel === filters.experience : true) &&
         (filters.education ? job.education === filters.education : true) &&
         (filters.location ? job.location.includes(filters.location) : true);
@@ -220,8 +221,8 @@ const JobPostings: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-4 mb-6 text-sm text-gray-700 ">
           <select
-            value={filters.role}
-            onChange={(e) => setFilters({ ...filters, role: e.target.value })}
+            value={filters.position}
+            onChange={(e) => setFilters({ ...filters, position: e.target.value })}
             className="px-3 py-2"
             disabled={isLoading}
           >
@@ -303,7 +304,7 @@ const JobPostings: React.FC = () => {
                     </div>
                     <p className="text-sm text-gray-800">{job.title}</p>
                     <p className="text-sm text-gray-500">
-                      {job.careerLevel} / {job.education} / {job.location}
+                    {job.position} / {job.careerLevel} / {job.education} / {job.location}
                     </p>
                   </div>
 
