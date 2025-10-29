@@ -74,18 +74,16 @@ const SignInfo: React.FC = () => {
 
       console.log('✅ 온보딩 성공:', response.data);
       alert('정보가 성공적으로 저장되었습니다!');
-      navigate('/'); // 🎯 대시보드 대신 메인으로 이동
+      navigate('/'); // 🎯 메인으로 이동
 
     } catch (err: any) {
       console.error('❌ 온보딩 실패:', err);
 
-      // Axios 에러 응답 처리
       if (err.response) {
         const status = err.response.status;
         const backendMessage = err.response.data?.message;
 
         if (status === 400) {
-          // 백엔드에서 중복 닉네임 등으로 던진 IllegalArgumentException 처리
           setError(backendMessage || '입력하신 정보에 문제가 있습니다.');
         } else if (status === 401) {
           setError('로그인이 만료되었습니다. 다시 로그인해주세요.');
@@ -106,20 +104,28 @@ const SignInfo: React.FC = () => {
     }
   };
 
+  const isFormComplete = Object.values(formData).every(value => value.trim() !== '');
+
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-gray-100 p-6">
       <h1 className="text-3xl font-bold mb-4">HIREHUB</h1>
       <hr className="max-w-md w-full border-t-2 border-gray-300 mb-6" />
       <h2 className="text-xl mb-6 font-bold">정보를 입력해주세요</h2>
 
-      {/* 에러 메시지 표시 */}
+      {/* 에러 메시지 */}
       {error && (
         <div className="w-full max-w-md mb-4 px-4 py-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
+      <form
+        onSubmit={handleSubmit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.preventDefault(); // 🔒 엔터로 제출 방지
+        }}
+        className="bg-white p-6 rounded-lg shadow-md w-full max-w-md"
+      >
         {/* 이름 */}
         <div className="mb-4">
           <label htmlFor="displayName" className="block text-sm font-medium text-gray-700">
@@ -149,6 +155,7 @@ const SignInfo: React.FC = () => {
             name="nickname"
             value={formData.nickname}
             onChange={handleChange}
+            required
             disabled={isLoading}
             className="mt-1 p-2 w-full border rounded-md"
             placeholder="닉네임을 입력하세요"
@@ -222,6 +229,7 @@ const SignInfo: React.FC = () => {
             name="address"
             value={formData.address}
             onChange={handleChange}
+            required
             disabled={isLoading}
             className="mt-1 p-2 w-full border rounded-md"
             placeholder="주소를 입력하세요"
@@ -238,6 +246,7 @@ const SignInfo: React.FC = () => {
             name="location"
             value={formData.location}
             onChange={handleChange}
+            required
             disabled={isLoading}
             className="mt-1 p-2 w-full border rounded-md"
           >
@@ -258,6 +267,7 @@ const SignInfo: React.FC = () => {
             name="position"
             value={formData.position}
             onChange={handleChange}
+            required
             disabled={isLoading}
             className="mt-1 p-2 w-full border rounded-md"
           >
@@ -282,6 +292,7 @@ const SignInfo: React.FC = () => {
             name="careerLevel"
             value={formData.careerLevel}
             onChange={handleChange}
+            required
             disabled={isLoading}
             className="mt-1 p-2 w-full border rounded-md"
           >
@@ -305,6 +316,7 @@ const SignInfo: React.FC = () => {
             name="education"
             value={formData.education}
             onChange={handleChange}
+            required
             disabled={isLoading}
             className="mt-1 p-2 w-full border rounded-md"
           >
@@ -320,7 +332,7 @@ const SignInfo: React.FC = () => {
         {/* 완료 버튼 */}
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={!isFormComplete || isLoading}
           className="w-full bg-gray-300 text-black p-2 rounded-md hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? '저장 중...' : '완료'}
