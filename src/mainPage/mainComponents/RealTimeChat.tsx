@@ -14,6 +14,7 @@ interface ChatMessage {
   createAt: string;
   sessionId: string;
   nickname?: string;
+  userId?: number;
 }
 
 const RealTimeChat: React.FC = () => {
@@ -131,27 +132,32 @@ const RealTimeChat: React.FC = () => {
         setIsConnected(true);
         setConnectionError('');
         
+        console.log(`🔔 구독 시작: /topic/rooms/${sessionId}`);
+        
         const subscription = client.subscribe(`/topic/rooms/${sessionId}`, (message) => {
-          console.log('📨 새 메시지 수신:', message.body);
+          console.log('📨 새 메시지 수신 (raw):', message);
+          console.log('📨 메시지 body:', message.body);
+          
           try {
             const newMsg: ChatMessage = JSON.parse(message.body);
-            console.log('파싱된 메시지:', newMsg);
+            console.log('✅ 파싱된 메시지:', newMsg);
+            console.log('메시지 ID:', newMsg.id, '닉네임:', newMsg.nickname, 'User ID:', newMsg.userId);
             
             setMessages((prev) => {
               // 중복 체크 (ID가 있는 경우)
               if (newMsg.id && prev.some(m => m.id === newMsg.id)) {
-                console.log('중복 메시지 무시:', newMsg.id);
+                console.log('⚠️ 중복 메시지 무시:', newMsg.id);
                 return prev;
               }
-              console.log('메시지 추가:', newMsg);
+              console.log('✅ 메시지 추가:', newMsg);
               return [...prev, newMsg];
             });
           } catch (e) {
-            console.error('메시지 파싱 실패:', e);
+            console.error('❌ 메시지 파싱 실패:', e, message.body);
           }
         });
         
-        console.log('구독 완료:', subscription);
+        console.log('✅ 구독 완료:', subscription.id);
       };
 
       client.onStompError = (frame) => {
