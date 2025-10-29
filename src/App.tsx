@@ -13,6 +13,7 @@ import Signup from './signPage/signup/SignUp';
 import JobPostings from './jobPostings/JobPostings';
 import CompanyDetail from './jobPostings/jopPostingComponents/CompanyDetail';
 import ChatBot from './chatBot/ChatBot';
+import JobDetailRoute from "./jobPostings/JobDetailRoute";
 
 function App() {
   return (
@@ -45,6 +46,11 @@ function App() {
         <Route path="/company/:companyName" element={<Layout><CompanyDetail onBack={() => window.history.back()} /></Layout>} />
 
         {/* ❌ 여기 있었던 /myPage/resume/ResumeViewer/:id 라우트는 제거 */}
+
+          {/* ...기존 라우트들 */}
+  <Route path="/jobposts/:id" element={<JobDetailRoute />} />
+  {/* 필요하면 별칭도 같이 열어두세요 */}
+  <Route path="/jobs/:id" element={<JobDetailRoute />} />
       </Routes>
     </BrowserRouter>
   );
