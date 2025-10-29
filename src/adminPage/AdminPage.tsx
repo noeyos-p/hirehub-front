@@ -8,6 +8,7 @@ import BoardManagement from "./adminComponents/BoardManagement";
 import CommentManagement from "./adminComponents/CommentManagement";
 import ReviewManagement from "./adminComponents/ReviewManagement";
 import ResumeManagement from "./adminComponents/ResumeManagement";
+import LiveSupport from "./adminComponents/LiveSupport"; // ✅ 추가
 
 const menuItems = [
   { name: "공고 관리", path: "job-management" },
@@ -18,6 +19,7 @@ const menuItems = [
   { name: "리뷰 관리", path: "review-management" },
   { name: "게시판 관리", path: "board-management" },
   { name: "이력서 관리", path: "resume-management" },
+  { name: "실시간 상담", path: "live-support" }, // ✅ 추가
   { name: "로그아웃", path: "logout" },
 ];
 
@@ -62,6 +64,7 @@ const AdminLayout: React.FC = () => {
         {activeTab === "review-management" && <ReviewManagement />}
         {activeTab === "board-management" && <BoardManagement />}
         {activeTab === "resume-management" && <ResumeManagement />}
+        {activeTab === "live-support" && <LiveSupport />}{/* ✅ 추가 */}
       </main>
     </div>
   );
