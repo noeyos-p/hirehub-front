@@ -1,10 +1,9 @@
 // src/myPage/myPageComponents/ResumeDetail.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { PlusIcon } from "@heroicons/react/24/outline";
-import { flushSync } from "react-dom";
-
 import api from "../../api/api";
+
+/** ---------------- Types ---------------- */
 
 type ResumeDto = {
   id: number;
@@ -51,6 +50,9 @@ const defaultExtra: ExtraState = {
   langs: [],
 };
 
+/** ---------------- Helpers ---------------- */
+
+// 성별 표기
 const prettyGender = (g?: string | null) => {
   if (!g) return "";
   const s = String(g).toLowerCase();
@@ -59,6 +61,7 @@ const prettyGender = (g?: string | null) => {
   return g;
 };
 
+// 생일 YYYY-MM-DD
 const formatBirth = (dateStr?: string | null) => {
   if (!dateStr) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
@@ -73,6 +76,78 @@ const formatBirth = (dateStr?: string | null) => {
     return "";
   }
 };
+
+// 기간 문자열 파싱 (YYYY, YYYY-MM, YYYY-MM-DD 조합 허용)
+const parsePeriod = (period?: string) => {
+  if (!period) return { startAt: undefined as string | undefined, endAt: undefined as string | undefined };
+  const p = period.replace(/\s/g, "");
+  const m = p.split(/~|─|—|to|~/i);
+  const norm = (s?: string) => {
+    if (!s) return undefined;
+    if (/^\d{4}$/.test(s)) return `${s}-01-01`;
+    if (/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
+    if (/^\d{4}\.\d{2}$/.test(s)) return s.replace(".", "-") + "-01";
+    if (/^\d{4}\.\d{2}\.\d{2}$/.test(s)) return s.replaceAll(".", "-");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    return undefined;
+  };
+  const startAt = norm(m[0]);
+  const endAt = norm(m[1]);
+  return { startAt, endAt };
+};
+
+// start/end를 다시 한 줄 표기로
+const formatPeriod = (s?: string, e?: string) => {
+  if (s && e) return `${s} ~ ${e}`;
+  return s || e || "";
+};
+
+// 백엔드 DTO용 타입
+type EducationBE = { name: string; major?: string; status?: string; type?: string; startAt?: string; endAt?: string };
+type CareerBE    = { companyName: string; type?: string; position?: string; startAt?: string; endAt?: string; content?: string };
+type NamedBE     = { name: string };
+
+// ExtraState → 백엔드 DTO 문자열 필드로 변환
+const mapExtraToBackend = (extra: ExtraState) => {
+  const education: EducationBE[] = (extra.educations ?? []).map(e => {
+    const { startAt, endAt } = parsePeriod(e.period);
+    return {
+      name: e.school,
+      major: e.major,
+      status: e.status,
+      type: "대학",
+      startAt, endAt
+    };
+  });
+
+  const career: CareerBE[] = (extra.careers ?? []).map(c => {
+    const { startAt, endAt } = parsePeriod(c.period);
+    return {
+      companyName: c.company,
+      type: "정규",
+      position: c.role || c.job,
+      startAt, endAt,
+      content: c.desc
+    };
+  });
+
+  const certificate: NamedBE[] = (extra.certs ?? []).map(name => ({ name }));
+  const skill: NamedBE[]       = (extra.skills ?? []).map(name => ({ name }));
+  const language: NamedBE[]    = (extra.langs ?? []).map(name => ({ name }));
+
+  const htmlObj = { education, career, certificate, skill, language };
+
+  return {
+    htmlContent: JSON.stringify(htmlObj),           // 미리보기/서버 보관용
+    educationJson: JSON.stringify(education),       // 서버가 파싱해 섹션 테이블에 insert
+    careerJson: JSON.stringify(career),
+    certJson: JSON.stringify(certificate),
+    skillJson: JSON.stringify(skill),
+    langJson: JSON.stringify(language),
+  };
+};
+
+/** ---------------- Component ---------------- */
 
 const ResumeDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -107,7 +182,7 @@ const ResumeDetail: React.FC = () => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const handlePickPhoto = () => fileRef.current?.click();
 
-  // ✅ 온보딩 프로필 불러오기
+  /** 프로필 로드 */
   useEffect(() => {
     (async () => {
       try {
@@ -120,7 +195,7 @@ const ResumeDetail: React.FC = () => {
     })();
   }, []);
 
-  // ✅ 이력서 로드
+  /** 이력서 로드 */
   useEffect(() => {
     (async () => {
       if (!resumeId) return;
@@ -132,15 +207,31 @@ const ResumeDetail: React.FC = () => {
         setEssayContent(data?.essayContent ?? "");
         if (data?.idPhoto) setPhotoPreview(data.idPhoto);
 
+        // htmlContent → ExtraState 로 역매핑
         if (data?.htmlContent) {
-          const parsed = JSON.parse(data.htmlContent) as Partial<ExtraState>;
-          setExtra({
-            educations: parsed.educations ?? [],
-            careers: parsed.careers ?? [],
-            certs: parsed.certs ?? [],
-            skills: parsed.skills ?? [],
-            langs: parsed.langs ?? [],
-          });
+          try {
+            const root = JSON.parse(data.htmlContent) as any;
+            setExtra({
+              educations: (root.education ?? []).map((e: any) => ({
+                school: e?.name || "",
+                period: formatPeriod(e?.startAt, e?.endAt),
+                status: e?.status || "",
+                major:  e?.major || ""
+              })),
+              careers: (root.career ?? []).map((c: any) => ({
+                company: c?.companyName || "",
+                period:  formatPeriod(c?.startAt, c?.endAt),
+                role:    c?.position || "",
+                job:     "",
+                desc:    c?.content || ""
+              })),
+              certs:  (root.certificate ?? []).map((x: any) => x?.name).filter(Boolean),
+              skills: (root.skill ?? []).map((x: any) => x?.name).filter(Boolean),
+              langs:  (root.language ?? []).map((x: any) => x?.name).filter(Boolean),
+            });
+          } catch {
+            setExtra(defaultExtra);
+          }
         } else {
           setExtra(defaultExtra);
         }
@@ -152,16 +243,27 @@ const ResumeDetail: React.FC = () => {
     })();
   }, [resumeId]);
 
+  /** 최초 생성 보장 */
   const ensureResumeId = async (): Promise<number> => {
     if (resumeId) return resumeId;
+
+    const safeExtra = extraRef.current && Object.keys(extraRef.current).length > 0
+      ? extraRef.current
+      : defaultExtra;
+
+    const mapped = mapExtraToBackend(safeExtra);
+
     const payload = {
-      title,
-      essayTitle,
-      essayContent,
-      htmlContent: JSON.stringify(extraRef.current),
+      title: title || "새 이력서",
+      idPhoto: null,
+      essayTitle: essayTitle || "자기소개서",
+      essayContent: (essayContent && essayContent.trim()) || "임시 자기소개서 내용",
+      ...mapped, // ✅ htmlContent + *_Json 문자열 포함
     };
+
     const res = await api.post("/api/mypage/resumes", payload, {
       headers: { "Content-Type": "application/json" },
+      withCredentials: true
     });
     const id = res?.data?.id;
     if (!id) throw new Error("이력서 생성 실패");
@@ -169,6 +271,7 @@ const ResumeDetail: React.FC = () => {
     return id;
   };
 
+  /** 사진 업로드 */
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -191,7 +294,7 @@ const ResumeDetail: React.FC = () => {
     }
   };
 
-  // ---- 학력/경력/스킬 입력 refs ----
+  /** 입력 refs */
   const eduSchoolRef = useRef<HTMLInputElement>(null);
   const eduPeriodRef = useRef<HTMLInputElement>(null);
   const eduStatusRef = useRef<HTMLInputElement>(null);
@@ -207,7 +310,7 @@ const ResumeDetail: React.FC = () => {
   const skillRef = useRef<HTMLInputElement>(null);
   const langRef = useRef<HTMLInputElement>(null);
 
-  // ✅ add 함수들
+  /** add 함수들 */
   const addEducation = () => {
     const school = eduSchoolRef.current?.value?.trim() || "";
     const period = eduPeriodRef.current?.value?.trim() || "";
@@ -263,46 +366,49 @@ const ResumeDetail: React.FC = () => {
     if (langRef.current) langRef.current.value = "";
   };
 
-  // ✅ 저장 함수
- 
- const handleSave = async () => {
-  try {
-    setSaving(true);
+  /** 저장 */
+  const handleSave = async () => {
+    try {
+      setSaving(true);
 
-    // ✅ 항상 최신 extra를 JSON으로 안전 직렬화
-    const safeExtra = extra && Object.keys(extra).length > 0 ? extra : defaultExtra;
-    const payload = {
-      title: title || "새 이력서",
-      essayTitle: essayTitle || "자기소개서",
-      essayContent: (essayContent && essayContent.trim()) || "임시 자기소개서 내용",
-      htmlContent: JSON.stringify(safeExtra), // ✅ 무조건 JSON 문자열
-    };
+      const safeExtra = extra && Object.keys(extra).length > 0 ? extra : defaultExtra;
+      const mapped = mapExtraToBackend(safeExtra);
 
-    console.log("💾 [DEBUG] 저장 직전 payload:", payload); // ← 콘솔 확인용
+      const payload = {
+        title: title || "새 이력서",
+        idPhoto: photoPreview,
+        essayTitle: essayTitle || "자기소개서",
+        essayContent: (essayContent && essayContent.trim()) || "임시 자기소개서 내용",
+        ...mapped, // ✅ 핵심: *_Json 문자열 포함
+      };
 
-    if (resumeId) {
-      await api.put(`/api/mypage/resumes/${resumeId}`, payload, {
-        headers: { "Content-Type": "application/json" },
-      });
-    } else {
-      const res = await api.post(`/api/mypage/resumes`, payload, {
-        headers: { "Content-Type": "application/json" },
-      });
-      const id = res?.data?.id;
-      if (id) setResumeId(id);
+      console.log("💾 [DEBUG] 저장 직전 payload:", payload);
+
+      if (resumeId) {
+        await api.put(`/api/mypage/resumes/${resumeId}`, payload, {
+          headers: { "Content-Type": "application/json" },
+          withCredentials: true
+        });
+      } else {
+        const res = await api.post(`/api/mypage/resumes`, payload, {
+          headers: { "Content-Type": "application/json" },
+          withCredentials: true
+        });
+        const id = res?.data?.id;
+        if (id) setResumeId(id);
+      }
+
+      alert("저장되었습니다.");
+      navigate("/myPage/Resume");
+    } catch (e: any) {
+      console.error("저장 실패:", e);
+      alert("저장 중 오류가 발생했습니다.");
+    } finally {
+      setSaving(false);
     }
+  };
 
-    alert("저장되었습니다.");
-    navigate("/myPage/Resume");
-  } catch (e: any) {
-    console.error("저장 실패:", e);
-    alert("저장 중 오류가 발생했습니다.");
-  } finally {
-    setSaving(false);
-  }
-};
-
-  
+  /** ---------------- UI ---------------- */
 
   return (
     <div className="max-w-5xl mx-auto py-10 px-8 bg-white">
@@ -316,7 +422,7 @@ const ResumeDetail: React.FC = () => {
         />
       </div>
 
-      {/* ✅ 온보딩 프로필 */}
+      {/* 프로필 */}
       <div className="flex gap-8 mb-12">
         <button
           type="button"
@@ -354,10 +460,15 @@ const ResumeDetail: React.FC = () => {
         </div>
         <div className="grid grid-cols-5 gap-4 mb-3">
           <input ref={eduSchoolRef} placeholder="학교명" className="border p-1 rounded" />
-          <input ref={eduPeriodRef} placeholder="기간" className="border p-1 rounded" />
+          <input ref={eduPeriodRef} placeholder="예: 2018-03 ~ 2022-02" className="border p-1 rounded" />
           <input ref={eduStatusRef} placeholder="상태" className="border p-1 rounded" />
-          <input ref={eduMajorRef} placeholder="전공 (Enter 추가)" className="border p-1 rounded"
-            onKeyDown={(e) => { if (e.key === "Enter") addEducation(); }} />
+          <input
+            ref={eduMajorRef}
+            placeholder="전공 (Enter 추가)"
+            className="border p-1 rounded"
+            onKeyDown={(e) => { if (e.key === "Enter") addEducation(); }}
+          />
+          <button onClick={addEducation} className="text-sm bg-gray-100 rounded px-2">추가</button>
         </div>
         <ul className="text-sm text-gray-700 space-y-1">
           {extra.educations.map((ed, i) => (
@@ -374,11 +485,18 @@ const ResumeDetail: React.FC = () => {
         </div>
         <div className="grid grid-cols-5 gap-4 mb-3">
           <input ref={carCompanyRef} placeholder="회사명" className="border p-1 rounded" />
-          <input ref={carPeriodRef} placeholder="기간" className="border p-1 rounded" />
+          <input ref={carPeriodRef} placeholder="예: 2023-01 ~ 2024-05" className="border p-1 rounded" />
           <input ref={carRoleRef} placeholder="직책" className="border p-1 rounded" />
           <input ref={carJobRef} placeholder="직무" className="border p-1 rounded" />
-          <input ref={carDescRef} placeholder="내용 (Enter 추가)" className="border p-1 rounded"
-            onKeyDown={(e) => { if (e.key === "Enter") addCareer(); }} />
+          <input
+            ref={carDescRef}
+            placeholder="내용 (Enter 추가)"
+            className="border p-1 rounded"
+            onKeyDown={(e) => { if (e.key === "Enter") addCareer(); }}
+          />
+        </div>
+        <div className="mb-2">
+          <button onClick={addCareer} className="text-sm bg-gray-100 rounded px-2">추가</button>
         </div>
         <ul className="text-sm text-gray-700 space-y-1">
           {extra.careers.map((c, i) => (
@@ -391,22 +509,37 @@ const ResumeDetail: React.FC = () => {
       <div className="grid grid-cols-3 gap-6 mb-10">
         <div>
           <h3 className="text-lg font-semibold mb-2">자격증</h3>
-          <input ref={certRef} placeholder="자격증 (Enter 추가)" className="border p-1 rounded w-full mb-2"
-            onKeyDown={(e) => { if (e.key === "Enter") addCert(); }} />
+          <input
+            ref={certRef}
+            placeholder="자격증 (Enter 추가)"
+            className="border p-1 rounded w-full mb-2"
+            onKeyDown={(e) => { if (e.key === "Enter") addCert(); }}
+          />
+          <button onClick={addCert} className="text-sm bg-gray-100 rounded px-2 mb-2">추가</button>
           <ul>{extra.certs.map((c, i) => (<li key={i}>{c}</li>))}</ul>
         </div>
 
         <div>
           <h3 className="text-lg font-semibold mb-2">스킬</h3>
-          <input ref={skillRef} placeholder="스킬 (Enter 추가)" className="border p-1 rounded w-full mb-2"
-            onKeyDown={(e) => { if (e.key === "Enter") addSkill(); }} />
+          <input
+            ref={skillRef}
+            placeholder="스킬 (Enter 추가)"
+            className="border p-1 rounded w-full mb-2"
+            onKeyDown={(e) => { if (e.key === "Enter") addSkill(); }}
+          />
+          <button onClick={addSkill} className="text-sm bg-gray-100 rounded px-2 mb-2">추가</button>
           <ul>{extra.skills.map((s, i) => (<li key={i}>{s}</li>))}</ul>
         </div>
 
         <div>
           <h3 className="text-lg font-semibold mb-2">언어</h3>
-          <input ref={langRef} placeholder="언어 (Enter 추가)" className="border p-1 rounded w-full mb-2"
-            onKeyDown={(e) => { if (e.key === "Enter") addLang(); }} />
+          <input
+            ref={langRef}
+            placeholder="언어 (Enter 추가)"
+            className="border p-1 rounded w-full mb-2"
+            onKeyDown={(e) => { if (e.key === "Enter") addLang(); }}
+          />
+          <button onClick={addLang} className="text-sm bg-gray-100 rounded px-2 mb-2">추가</button>
           <ul>{extra.langs.map((l, i) => (<li key={i}>{l}</li>))}</ul>
         </div>
       </div>
@@ -432,7 +565,9 @@ const ResumeDetail: React.FC = () => {
 
       <div className="flex justify-end gap-4">
         <button onClick={() => navigate(-1)} className="border px-4 py-2 rounded">다음에 하기</button>
-        <button onClick={handleSave} className="bg-gray-200 px-5 py-2 rounded">저장하기</button>
+        <button onClick={handleSave} className="bg-gray-200 px-5 py-2 rounded" disabled={saving}>
+          {saving ? "저장 중..." : "저장하기"}
+        </button>
       </div>
     </div>
   );
