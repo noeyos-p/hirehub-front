@@ -85,7 +85,7 @@ const JobPostings: React.FC = () => {
     fetchScrappedJobs();
   }, []);
 
-  // 검색어가 변경되면 페이지를 1로 초기화
+  // 검색어 변경 시 페이지 초기화
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
@@ -164,22 +164,47 @@ const JobPostings: React.FC = () => {
     "용산구", "은평구", "종로구", "중구", "중랑구",
   ];
 
-  // 검색어 필터링 추가
-  const filteredJobs = jobListings.filter(
-    (job) => {
-      const matchesSearch = !searchQuery || 
-        job.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.location.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      return matchesSearch &&
-        (filters.position ? job.title.includes(filters.position) : true) &&
-        (filters.experience ? job.careerLevel === filters.experience : true) &&
-        (filters.education ? job.education === filters.education : true) &&
-        (filters.location ? job.location.includes(filters.location) : true);
-    }
-  );
+  // ✅ 개선된 필터 로직
+  const filteredJobs = jobListings.filter((job) => {
+    const jobTitle = job.title?.toLowerCase() || "";
+    const jobCompany = job.companyName?.toLowerCase() || "";
+    const jobPosition = job.position?.toLowerCase() || "";
+    const jobCareer = job.careerLevel?.toLowerCase() || "";
+    const jobEdu = job.education?.toLowerCase() || "";
+    const jobLoc = job.location?.toLowerCase() || "";
+    const query = searchQuery.toLowerCase();
+
+    const matchesSearch =
+      !searchQuery ||
+      jobTitle.includes(query) ||
+      jobCompany.includes(query) ||
+      jobPosition.includes(query) ||
+      jobLoc.includes(query);
+
+    const matchesPosition =
+      !filters.position ||
+      jobPosition.includes(filters.position.toLowerCase());
+
+    const matchesExperience =
+      !filters.experience ||
+      jobCareer.includes(filters.experience.toLowerCase());
+
+    const matchesEducation =
+      !filters.education ||
+      jobEdu.includes(filters.education.toLowerCase());
+
+    const matchesLocation =
+      !filters.location ||
+      jobLoc.includes(filters.location.toLowerCase());
+
+    return (
+      matchesSearch &&
+      matchesPosition &&
+      matchesExperience &&
+      matchesEducation &&
+      matchesLocation
+    );
+  });
 
   const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
   const paginatedJobs = filteredJobs.slice(
@@ -230,6 +255,9 @@ const JobPostings: React.FC = () => {
             <option value="프론트">프론트</option>
             <option value="백엔드">백엔드</option>
             <option value="풀스택">풀스택</option>
+            <option value="DevOps">DevOps</option>
+            <option value="데이터">데이터</option>
+            <option value="AI">AI</option>
           </select>
 
           <select
@@ -241,6 +269,7 @@ const JobPostings: React.FC = () => {
             <option value="">경력</option>
             <option value="신입">신입</option>
             <option value="경력">경력</option>
+            <option value="경력무관">경력무관</option>
           </select>
 
           <select
@@ -304,7 +333,8 @@ const JobPostings: React.FC = () => {
                     </div>
                     <p className="text-sm text-gray-800">{job.title}</p>
                     <p className="text-sm text-gray-500">
-                    {job.position} / {job.careerLevel} / {job.education} / {job.location}
+                      {job.position && <span>{job.position} / </span>}
+                      {job.careerLevel} / {job.education} / {job.location}
                     </p>
                   </div>
 
@@ -326,6 +356,7 @@ const JobPostings: React.FC = () => {
               ))}
             </div>
 
+            {/* 페이지네이션 */}
             <div className="flex justify-center items-center space-x-1 mt-8">
               <button
                 className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -359,7 +390,7 @@ const JobPostings: React.FC = () => {
                       key={i}
                       className={`px-3 py-1 text-sm border rounded transition-colors ${
                         currentPage === i
-                          ? "bg-blue-600 text-white border-blue-600"
+                          ? "bg-gray-300 text-white border-gray-300 hover:bg-gray-400"
                           : "text-gray-700 border-gray-300 hover:bg-gray-100"
                       }`}
                       onClick={() => setCurrentPage(i)}

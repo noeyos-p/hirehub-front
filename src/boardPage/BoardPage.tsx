@@ -5,7 +5,6 @@ import PopularPosts from './boardComponents/PopularPosts';
 import Ads from './boardComponents/ads';
 import BoardDetail from './boardComponents/BoardDetail';
 import BoardWrite from './boardComponents/BoardWrite';
-import type { Board } from '../types/interface';
 
 const BoardPage: React.FC = () => {
 

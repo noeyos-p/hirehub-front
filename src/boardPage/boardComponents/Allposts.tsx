@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MagnifyingGlassIcon, ChatBubbleLeftIcon } from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useNavigate } from 'react-router-dom';
 import { boardApi, type BoardListResponse } from '../../api/boardApi';
 
@@ -146,21 +146,13 @@ const AllPosts: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    {/* 댓글 개수 */}
-                    <div className="flex items-center space-x-1 text-gray-500">
-                      <ChatBubbleLeftIcon className="w-4 h-4" />
-                      <span className="text-sm">{board.comments?.length || 0}</span>
-                    </div>
-                    {/* 날짜 및 조회수 */}
-                    <div className="text-right">
-                      <p className="text-sm text-gray-500">
-                        {formatDate(board.createAt)}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        조회수: {board.views || 0}
-                      </p>
-                    </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500">
+                      {formatDate(board.createAt)}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      조회수: {board.views || 0}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -192,7 +184,7 @@ const AllPosts: React.FC = () => {
                   onClick={() => setCurrentPage(pageNum)}
                   className={`px-3 py-1 text-sm border border-gray-300 rounded ${
                     currentPage === pageNum
-                      ? 'bg-gray-700 text-white'
+                      ? 'bg-gray-300 text-white hover:bg-gray-400'
                       : 'text-gray-500 hover:bg-gray-100'
                   }`}
                 >
