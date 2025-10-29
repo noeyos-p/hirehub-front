@@ -1,5 +1,3 @@
-// types/interface.ts
-
 // Types
 export type Role = "ROLE_USER" | "ROLE_ADMIN";
 
@@ -173,6 +171,7 @@ export interface JobPosts {
   end_at: string;
   location: string;
   career_level: string;
+  position: string;
   education: string;
   type: string; // 고용형태
   salary: string; // 급여
