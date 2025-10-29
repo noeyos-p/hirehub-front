@@ -52,7 +52,6 @@ const defaultExtra: ExtraState = {
 
 /** ---------------- Helpers ---------------- */
 
-// 성별 표기
 const prettyGender = (g?: string | null) => {
   if (!g) return "";
   const s = String(g).toLowerCase();
@@ -61,7 +60,6 @@ const prettyGender = (g?: string | null) => {
   return g;
 };
 
-// 생일 YYYY-MM-DD
 const formatBirth = (dateStr?: string | null) => {
   if (!dateStr) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
@@ -77,69 +75,81 @@ const formatBirth = (dateStr?: string | null) => {
   }
 };
 
-// 기간 문자열 파싱 (YYYY, YYYY-MM, YYYY-MM-DD 조합 허용)
+/** 기간 파서 & 검증
+ * 허용 예:
+ *  - 2023-01 ~ 2024-05
+ *  - 2020.03~2022.02
+ *  - 2020 ~ 2022
+ *  - 2023-01-01 ~ 2024-05-31
+ */
+const normalizeDate = (s?: string): string | undefined => {
+  if (!s) return undefined;
+  const t = s.trim().replace(/\s+/g, "");
+
+  if (/^\d{4}$/.test(t)) return `${t}-01-01`;
+  if (/^\d{4}[-.]\d{2}$/.test(t)) return t.replace(".", "-") + "-01";
+  if (/^\d{4}[-.]\d{2}[-.]\d{2}$/.test(t)) return t.replaceAll(".", "-");
+
+  return undefined;
+};
+
+const splitPeriod = (raw?: string) => {
+  if (!raw) return { a: undefined as string | undefined, b: undefined as string | undefined };
+  // 다양한 구분자 허용: ~, -, –, —, to
+  const cleaned = raw.replace(/\s+/g, "");
+  const parts = cleaned.split(/~|—|–|to|ㅡ/gi);
+  if (parts.length === 1) return { a: parts[0], b: undefined };
+  return { a: parts[0], b: parts[1] };
+};
+
 const parsePeriod = (period?: string) => {
-  if (!period) return { startAt: undefined as string | undefined, endAt: undefined as string | undefined };
-  const p = period.replace(/\s/g, "");
-  const m = p.split(/~|─|—|to|~/i);
-  const norm = (s?: string) => {
-    if (!s) return undefined;
-    if (/^\d{4}$/.test(s)) return `${s}-01-01`;
-    if (/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
-    if (/^\d{4}\.\d{2}$/.test(s)) return s.replace(".", "-") + "-01";
-    if (/^\d{4}\.\d{2}\.\d{2}$/.test(s)) return s.replaceAll(".", "-");
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    return undefined;
-  };
-  const startAt = norm(m[0]);
-  const endAt = norm(m[1]);
+  const { a, b } = splitPeriod(period);
+  const startAt = normalizeDate(a);
+  const endAt = normalizeDate(b);
   return { startAt, endAt };
 };
 
-// start/end를 다시 한 줄 표기로
+const isValidPeriod = (period?: string) => {
+  if (!period || !period.trim()) return true; // 비워두는 것도 허용
+  const { startAt, endAt } = parsePeriod(period);
+  // 하나만 있어도 OK
+  if (!startAt && !endAt) return false;
+  if (startAt && isNaN(new Date(startAt).getTime())) return false;
+  if (endAt && isNaN(new Date(endAt).getTime())) return false;
+  if (startAt && endAt && new Date(startAt) > new Date(endAt)) return false;
+  return true;
+};
+
 const formatPeriod = (s?: string, e?: string) => {
   if (s && e) return `${s} ~ ${e}`;
   return s || e || "";
 };
 
-// 백엔드 DTO용 타입
+// 백엔드 DTO
 type EducationBE = { name: string; major?: string; status?: string; type?: string; startAt?: string; endAt?: string };
-type CareerBE    = { companyName: string; type?: string; position?: string; startAt?: string; endAt?: string; content?: string };
-type NamedBE     = { name: string };
+type CareerBE = { companyName: string; type?: string; position?: string; startAt?: string; endAt?: string; content?: string };
+type NamedBE = { name: string };
 
-// ExtraState → 백엔드 DTO 문자열 필드로 변환
 const mapExtraToBackend = (extra: ExtraState) => {
-  const education: EducationBE[] = (extra.educations ?? []).map(e => {
+  const education: EducationBE[] = (extra.educations ?? []).map((e) => {
     const { startAt, endAt } = parsePeriod(e.period);
-    return {
-      name: e.school,
-      major: e.major,
-      status: e.status,
-      type: "대학",
-      startAt, endAt
-    };
+    return { name: e.school, major: e.major, status: e.status, type: "대학", startAt, endAt };
   });
 
-  const career: CareerBE[] = (extra.careers ?? []).map(c => {
+  const career: CareerBE[] = (extra.careers ?? []).map((c) => {
     const { startAt, endAt } = parsePeriod(c.period);
-    return {
-      companyName: c.company,
-      type: "정규",
-      position: c.role || c.job,
-      startAt, endAt,
-      content: c.desc
-    };
+    return { companyName: c.company, type: "정규", position: c.role || c.job, startAt, endAt, content: c.desc };
   });
 
-  const certificate: NamedBE[] = (extra.certs ?? []).map(name => ({ name }));
-  const skill: NamedBE[]       = (extra.skills ?? []).map(name => ({ name }));
-  const language: NamedBE[]    = (extra.langs ?? []).map(name => ({ name }));
+  const certificate: NamedBE[] = (extra.certs ?? []).map((name) => ({ name }));
+  const skill: NamedBE[] = (extra.skills ?? []).map((name) => ({ name }));
+  const language: NamedBE[] = (extra.langs ?? []).map((name) => ({ name }));
 
   const htmlObj = { education, career, certificate, skill, language };
 
   return {
-    htmlContent: JSON.stringify(htmlObj),           // 미리보기/서버 보관용
-    educationJson: JSON.stringify(education),       // 서버가 파싱해 섹션 테이블에 insert
+    htmlContent: JSON.stringify(htmlObj),
+    educationJson: JSON.stringify(education),
     careerJson: JSON.stringify(career),
     certJson: JSON.stringify(certificate),
     skillJson: JSON.stringify(skill),
@@ -207,7 +217,6 @@ const ResumeDetail: React.FC = () => {
         setEssayContent(data?.essayContent ?? "");
         if (data?.idPhoto) setPhotoPreview(data.idPhoto);
 
-        // htmlContent → ExtraState 로 역매핑
         if (data?.htmlContent) {
           try {
             const root = JSON.parse(data.htmlContent) as any;
@@ -216,18 +225,18 @@ const ResumeDetail: React.FC = () => {
                 school: e?.name || "",
                 period: formatPeriod(e?.startAt, e?.endAt),
                 status: e?.status || "",
-                major:  e?.major || ""
+                major: e?.major || "",
               })),
               careers: (root.career ?? []).map((c: any) => ({
                 company: c?.companyName || "",
-                period:  formatPeriod(c?.startAt, c?.endAt),
-                role:    c?.position || "",
-                job:     "",
-                desc:    c?.content || ""
+                period: formatPeriod(c?.startAt, c?.endAt),
+                role: c?.position || "",
+                job: "",
+                desc: c?.content || "",
               })),
-              certs:  (root.certificate ?? []).map((x: any) => x?.name).filter(Boolean),
+              certs: (root.certificate ?? []).map((x: any) => x?.name).filter(Boolean),
               skills: (root.skill ?? []).map((x: any) => x?.name).filter(Boolean),
-              langs:  (root.language ?? []).map((x: any) => x?.name).filter(Boolean),
+              langs: (root.language ?? []).map((x: any) => x?.name).filter(Boolean),
             });
           } catch {
             setExtra(defaultExtra);
@@ -247,28 +256,40 @@ const ResumeDetail: React.FC = () => {
   const ensureResumeId = async (): Promise<number> => {
     if (resumeId) return resumeId;
 
-    const safeExtra = extraRef.current && Object.keys(extraRef.current).length > 0
-      ? extraRef.current
-      : defaultExtra;
-
+    const safeExtra = extraRef.current && Object.keys(extraRef.current).length > 0 ? extraRef.current : defaultExtra;
     const mapped = mapExtraToBackend(safeExtra);
+    const safePhoto = photoPreview && photoPreview.startsWith("http") ? photoPreview : null;
 
     const payload = {
-      title: title || "새 이력서",
-      idPhoto: null,
-      essayTitle: essayTitle || "자기소개서",
+      title: (title || "새 이력서").trim() || "새 이력서",
+      idPhoto: safePhoto ?? null,
+      essayTitle: (essayTitle || "자기소개서").trim() || "자기소개서",
+      essayTittle: (essayTitle || "자기소개서").trim() || "자기소개서",
       essayContent: (essayContent && essayContent.trim()) || "임시 자기소개서 내용",
-      ...mapped, // ✅ htmlContent + *_Json 문자열 포함
+      ...mapped,
     };
 
-    const res = await api.post("/api/mypage/resumes", payload, {
-      headers: { "Content-Type": "application/json" },
-      withCredentials: true
-    });
-    const id = res?.data?.id;
-    if (!id) throw new Error("이력서 생성 실패");
-    setResumeId(id);
-    return id;
+    try {
+      const res = await api.post("/api/mypage/resumes", payload, {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: true,
+      });
+      const id = res?.data?.id;
+      if (!id) throw new Error("이력서 생성 실패: ID 없음");
+      setResumeId(id);
+      return id;
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const data = e?.response?.data;
+      const serverMsg =
+        data?.message || data?.error || (typeof data === "string" ? data : JSON.stringify(data)) || e?.message;
+      alert(
+        status && String(status).startsWith("5")
+          ? "정확한 값을 입력해주세요. (예: 기간 2023-01 ~ 2024-05)"
+          : `이력서 생성 중 오류가 발생했습니다.\n[${status ?? "ERR"}] ${serverMsg}`
+      );
+      throw e;
+    }
   };
 
   /** 사진 업로드 */
@@ -310,17 +331,20 @@ const ResumeDetail: React.FC = () => {
   const skillRef = useRef<HTMLInputElement>(null);
   const langRef = useRef<HTMLInputElement>(null);
 
-  /** add 함수들 */
+  /** add 함수들 (기간 검증 포함) */
+  const INVALID_PERIOD_MSG = "정확한 값을 입력해주세요. (예: 2023-01 ~ 2024-05)";
+
   const addEducation = () => {
     const school = eduSchoolRef.current?.value?.trim() || "";
     const period = eduPeriodRef.current?.value?.trim() || "";
     const status = eduStatusRef.current?.value?.trim() || "";
     const major = eduMajorRef.current?.value?.trim() || "";
+    if (period && !isValidPeriod(period)) {
+      alert(INVALID_PERIOD_MSG);
+      return;
+    }
     if (!school && !period && !status && !major) return;
-    setExtra((p) => ({
-      ...p,
-      educations: [...p.educations, { school, period, status, major }],
-    }));
+    setExtra((p) => ({ ...p, educations: [...p.educations, { school, period, status, major }] }));
     if (eduSchoolRef.current) eduSchoolRef.current.value = "";
     if (eduPeriodRef.current) eduPeriodRef.current.value = "";
     if (eduStatusRef.current) eduStatusRef.current.value = "";
@@ -333,11 +357,12 @@ const ResumeDetail: React.FC = () => {
     const role = carRoleRef.current?.value?.trim() || "";
     const job = carJobRef.current?.value?.trim() || "";
     const desc = carDescRef.current?.value?.trim() || "";
+    if (period && !isValidPeriod(period)) {
+      alert(INVALID_PERIOD_MSG);
+      return;
+    }
     if (!company && !period && !role && !job && !desc) return;
-    setExtra((p) => ({
-      ...p,
-      careers: [...p.careers, { company, period, role, job, desc }],
-    }));
+    setExtra((p) => ({ ...p, careers: [...p.careers, { company, period, role, job, desc }] }));
     if (carCompanyRef.current) carCompanyRef.current.value = "";
     if (carPeriodRef.current) carPeriodRef.current.value = "";
     if (carRoleRef.current) carRoleRef.current.value = "";
@@ -366,33 +391,52 @@ const ResumeDetail: React.FC = () => {
     if (langRef.current) langRef.current.value = "";
   };
 
+  /** 삭제 핸들러들 (X 버튼) */
+  const removeEducation = (idx: number) =>
+    setExtra((p) => ({ ...p, educations: p.educations.filter((_, i) => i !== idx) }));
+  const removeCareer = (idx: number) =>
+    setExtra((p) => ({ ...p, careers: p.careers.filter((_, i) => i !== idx) }));
+  const removeCert = (idx: number) =>
+    setExtra((p) => ({ ...p, certs: p.certs.filter((_, i) => i !== idx) }));
+  const removeSkill = (idx: number) =>
+    setExtra((p) => ({ ...p, skills: p.skills.filter((_, i) => i !== idx) }));
+  const removeLang = (idx: number) =>
+    setExtra((p) => ({ ...p, langs: p.langs.filter((_, i) => i !== idx) }));
+
   /** 저장 */
   const handleSave = async () => {
+    // 최종 저장 전, 리스트 내 기간들 검증
+    const badEdu = extra.educations.find((e) => e.period && !isValidPeriod(e.period));
+    const badCar = extra.careers.find((c) => c.period && !isValidPeriod(c.period));
+    if (badEdu || badCar) {
+      alert(INVALID_PERIOD_MSG);
+      return;
+    }
+
     try {
       setSaving(true);
 
-      const safeExtra = extra && Object.keys(extra).length > 0 ? extra : defaultExtra;
-      const mapped = mapExtraToBackend(safeExtra);
+      const mapped = mapExtraToBackend(extra && Object.keys(extra).length ? extra : defaultExtra);
+      const safePhoto = photoPreview && photoPreview.startsWith("http") ? photoPreview : null;
 
       const payload = {
-        title: title || "새 이력서",
-        idPhoto: photoPreview,
-        essayTitle: essayTitle || "자기소개서",
+        title: (title || "새 이력서").trim() || "새 이력서",
+        idPhoto: safePhoto ?? null,
+        essayTitle: (essayTitle || "자기소개서").trim() || "자기소개서",
+        essayTittle: (essayTitle || "자기소개서").trim() || "자기소개서",
         essayContent: (essayContent && essayContent.trim()) || "임시 자기소개서 내용",
-        ...mapped, // ✅ 핵심: *_Json 문자열 포함
-      };
-
-      console.log("💾 [DEBUG] 저장 직전 payload:", payload);
+        ...mapped,
+    };
 
       if (resumeId) {
         await api.put(`/api/mypage/resumes/${resumeId}`, payload, {
           headers: { "Content-Type": "application/json" },
-          withCredentials: true
+          withCredentials: true,
         });
       } else {
         const res = await api.post(`/api/mypage/resumes`, payload, {
           headers: { "Content-Type": "application/json" },
-          withCredentials: true
+          withCredentials: true,
         });
         const id = res?.data?.id;
         if (id) setResumeId(id);
@@ -401,8 +445,17 @@ const ResumeDetail: React.FC = () => {
       alert("저장되었습니다.");
       navigate("/myPage/Resume");
     } catch (e: any) {
-      console.error("저장 실패:", e);
-      alert("저장 중 오류가 발생했습니다.");
+      const status = e?.response?.status;
+      const data = e?.response?.data;
+      const serverMsg =
+        data?.message || data?.error || (typeof data === "string" ? data : JSON.stringify(data)) || e?.message;
+
+      // 5xx → 사용자가 고칠 수 있는 안내로 치환
+      if (status && String(status).startsWith("5")) {
+        alert("정확한 값을 입력해주세요. (예: 기간 2023-01 ~ 2024-05)");
+      } else {
+        alert(`저장 중 오류가 발생했습니다.\n[${status ?? "ERR"}] ${serverMsg}`);
+      }
     } finally {
       setSaving(false);
     }
@@ -451,7 +504,10 @@ const ResumeDetail: React.FC = () => {
 
       {/* 학력 */}
       <div className="mb-12">
-        <h3 className="text-lg font-semibold mb-3">학력</h3>
+        <div className="flex items-end justify-between">
+          <h3 className="text-lg font-semibold mb-3">학력</h3>
+          <p className="text-xs text-gray-400 mb-3">기간 예: <b>2023-01 ~ 2024-05</b> / 2020.03~2022.02 / 2020~2022</p>
+        </div>
         <div className="grid grid-cols-5 gap-4 mb-2 text-xs text-gray-400">
           <span>학교명</span>
           <span>재학기간</span>
@@ -460,7 +516,7 @@ const ResumeDetail: React.FC = () => {
         </div>
         <div className="grid grid-cols-5 gap-4 mb-3">
           <input ref={eduSchoolRef} placeholder="학교명" className="border p-1 rounded" />
-          <input ref={eduPeriodRef} placeholder="예: 2018-03 ~ 2022-02" className="border p-1 rounded" />
+          <input ref={eduPeriodRef} placeholder="예: 2020-03 ~ 2024-02" className="border p-1 rounded" />
           <input ref={eduStatusRef} placeholder="상태" className="border p-1 rounded" />
           <input
             ref={eduMajorRef}
@@ -472,14 +528,26 @@ const ResumeDetail: React.FC = () => {
         </div>
         <ul className="text-sm text-gray-700 space-y-1">
           {extra.educations.map((ed, i) => (
-            <li key={i}>{ed.school} · {ed.period} · {ed.status} · {ed.major}</li>
+            <li key={i} className="flex items-center gap-2">
+              <span className="flex-1">{ed.school} · {ed.period || "-"} · {ed.status} · {ed.major}</span>
+              <button
+                onClick={() => removeEducation(i)}
+                className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200"
+                aria-label="remove education"
+              >
+                ×
+              </button>
+            </li>
           ))}
         </ul>
       </div>
 
       {/* 경력 */}
       <div className="mb-12">
-        <h3 className="text-lg font-semibold mb-3">경력</h3>
+        <div className="flex items-end justify-between">
+          <h3 className="text-lg font-semibold mb-3">경력</h3>
+          <p className="text-xs text-gray-400 mb-3">기간 예: <b>2023-01 ~ 2024-05</b></p>
+        </div>
         <div className="grid grid-cols-5 gap-4 mb-2 text-xs text-gray-400">
           <span>회사명</span><span>근무기간</span><span>직책</span><span>직무</span><span>내용</span>
         </div>
@@ -500,7 +568,16 @@ const ResumeDetail: React.FC = () => {
         </div>
         <ul className="text-sm text-gray-700 space-y-1">
           {extra.careers.map((c, i) => (
-            <li key={i}>{c.company} · {c.period} · {c.role} · {c.job} · {c.desc}</li>
+            <li key={i} className="flex items-center gap-2">
+              <span className="flex-1">{c.company} · {c.period || "-"} · {c.role} · {c.job} · {c.desc}</span>
+              <button
+                onClick={() => removeCareer(i)}
+                className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200"
+                aria-label="remove career"
+              >
+                ×
+              </button>
+            </li>
           ))}
         </ul>
       </div>
@@ -516,7 +593,14 @@ const ResumeDetail: React.FC = () => {
             onKeyDown={(e) => { if (e.key === "Enter") addCert(); }}
           />
           <button onClick={addCert} className="text-sm bg-gray-100 rounded px-2 mb-2">추가</button>
-          <ul>{extra.certs.map((c, i) => (<li key={i}>{c}</li>))}</ul>
+          <ul className="space-y-1">
+            {extra.certs.map((c, i) => (
+              <li key={i} className="flex items-center justify-between">
+                <span>{c}</span>
+                <button onClick={() => removeCert(i)} className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200">×</button>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div>
@@ -528,7 +612,14 @@ const ResumeDetail: React.FC = () => {
             onKeyDown={(e) => { if (e.key === "Enter") addSkill(); }}
           />
           <button onClick={addSkill} className="text-sm bg-gray-100 rounded px-2 mb-2">추가</button>
-          <ul>{extra.skills.map((s, i) => (<li key={i}>{s}</li>))}</ul>
+          <ul className="space-y-1">
+            {extra.skills.map((s, i) => (
+              <li key={i} className="flex items-center justify-between">
+                <span>{s}</span>
+                <button onClick={() => removeSkill(i)} className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200">×</button>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div>
@@ -540,7 +631,14 @@ const ResumeDetail: React.FC = () => {
             onKeyDown={(e) => { if (e.key === "Enter") addLang(); }}
           />
           <button onClick={addLang} className="text-sm bg-gray-100 rounded px-2 mb-2">추가</button>
-          <ul>{extra.langs.map((l, i) => (<li key={i}>{l}</li>))}</ul>
+          <ul className="space-y-1">
+            {extra.langs.map((l, i) => (
+              <li key={i} className="flex items-center justify-between">
+                <span>{l}</span>
+                <button onClick={() => removeLang(i)} className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200">×</button>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
