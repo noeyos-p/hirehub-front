@@ -1,10 +1,71 @@
-import React, { useState, useEffect } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
-import api from '../../api/api';
+// src/admin/resume/ResumeManagement.tsx
+import React, { useEffect, useState } from "react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+import api from "../../api/api";
 
+/* =========================
+ * Types from Admin API
+ * ========================= */
+type ResumeDtoFromApi = {
+  id: number;
+  title: string;
+  idPhoto?: string | null;
+  essayTitle?: string | null;   // sometimes used by user side
+  essayTittle?: string | null;  // sometimes used by admin side
+  essayContent?: string | null;
+  htmlContent?: string | null;
+  locked: boolean;
+
+  // Admin page may provide these lists (optional)
+  educationList?: Array<{
+    name?: string;
+    major?: string;
+    status?: string;
+    type?: string;
+    startAt?: string | null;
+    endAt?: string | null;
+  }>;
+
+  careerList?: Array<{
+    companyName?: string;
+    type?: string;
+    position?: string;
+    startAt?: string | null;
+    endAt?: string | null;
+    content?: string;
+  }>;
+
+  certificateList?: Array<any>;
+  skillList?: Array<any>;
+  languageList?: Array<any>; // sometimes present
+
+  // sometimes languages: string[] (fallback key from server)
+  languages?: Array<any>;
+
+  users?: {
+    userId?: number;
+    nickname?: string;
+    email?: string;
+  };
+
+  createAt: string;
+  updateAt: string;
+};
+
+interface PageResponse<T> {
+  content: T[];
+  totalPages: number;
+  totalElements: number;
+  size: number;
+  number: number;
+}
+
+/* =========================
+ * View Models for Admin UI
+ * ========================= */
 type Education = {
   school: string;
-  period: string;
+  period: string; // "YYYY-MM-DD ~ YYYY-MM-DD"
   status: string;
   major: string;
 };
@@ -24,11 +85,13 @@ interface Resume {
   essayTittle?: string | null;
   essayContent?: string | null;
   htmlContent?: string | null;
-  educations?: Education[];
-  careers?: Career[];
-  certifications?: string[];
-  skills?: string[];
-  languages?: string[];
+
+  educations: Education[];
+  careers: Career[];
+  certifications: string[];
+  skills: string[];
+  languages: string[];
+
   locked: boolean;
   users: {
     id: number;
@@ -39,6 +102,134 @@ interface Resume {
   updateAt: string;
 }
 
+/* =========================
+ * Utils
+ * ========================= */
+const unique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)));
+
+const toStringList = (raw: any): string[] => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    // allow ['Java', 'Spring'] or [{name:'Java'}]
+    return raw
+      .map((v) => {
+        if (v == null) return null;
+        if (typeof v === "string") return v;
+        if (typeof v === "object" && "name" in v && v.name != null) {
+          return String((v as any).name);
+        }
+        return String(v);
+      })
+      .filter((s): s is string => typeof s === "string" && s.trim() !== "");
+  }
+  return [];
+};
+
+function parseHtmlContentToExtra(htmlContent?: string | null) {
+  if (!htmlContent) {
+    return { educations: [] as Education[], careers: [] as Career[], certifications: [] as string[], skills: [] as string[], languages: [] as string[] };
+  }
+  try {
+    const raw = JSON.parse(htmlContent) as any;
+
+    const eduRaw: any[] = raw?.education ?? raw?.educations ?? [];
+    const carRaw: any[] = raw?.career ?? raw?.careers ?? [];
+    const certRaw: any[] = raw?.certificate ?? raw?.certificates ?? [];
+    const skillRaw: any[] = raw?.skill ?? raw?.skills ?? [];
+    const langRaw: any[] = raw?.language ?? raw?.languages ?? raw?.langs ?? [];
+
+    const educations: Education[] = (eduRaw || []).map((e: any) => ({
+      school: e?.name ?? "",
+      period: [e?.startAt, e?.endAt].filter(Boolean).join(" ~ "),
+      status: e?.status ?? "",
+      major: e?.major ?? "",
+    }));
+
+    const careers: Career[] = (carRaw || []).map((c: any) => ({
+      company: c?.companyName ?? "",
+      period: [c?.startAt, c?.endAt].filter(Boolean).join(" ~ "),
+      role: c?.position ?? "",
+      job: c?.type ?? "",
+      desc: c?.content ?? "",
+    }));
+
+    const certifications = toStringList(certRaw);
+    const skills = toStringList(skillRaw);
+    const languages = toStringList(langRaw);
+
+    return { educations, careers, certifications, skills, languages };
+  } catch {
+    return { educations: [] as Education[], careers: [] as Career[], certifications: [] as string[], skills: [] as string[], languages: [] as string[] };
+  }
+}
+
+/** 핵심: 서버 DTO + htmlContent → 화면 모델 병합(언어 포함) */
+function normalizeResume(dto: ResumeDtoFromApi): Resume {
+  // users
+  const users = {
+    id: dto.users?.userId ?? 0,
+    nickname: dto.users?.nickname ?? "",
+    email: dto.users?.email ?? "",
+  };
+
+  // from DTO lists first
+  const mappedEducations: Education[] =
+    dto.educationList?.map((e) => ({
+      school: e?.name ?? "",
+      period: [e?.startAt, e?.endAt].filter(Boolean).join(" ~ "),
+      status: e?.status ?? "",
+      major: e?.major ?? "",
+    })) ?? [];
+
+  const mappedCareers: Career[] =
+    dto.careerList?.map((c) => ({
+      company: c?.companyName ?? "",
+      period: [c?.startAt, c?.endAt].filter(Boolean).join(" ~ "),
+      role: c?.position ?? "",
+      job: c?.type ?? "",
+      desc: c?.content ?? "",
+    })) ?? [];
+
+  const mappedCertsFromDto = toStringList(dto.certificateList || []);
+  const mappedSkillsFromDto = toStringList(dto.skillList || []);
+
+  // support both languageList and languages keys
+  const mappedLangsFromDto = unique([
+    ...toStringList(dto.languageList || []),
+    ...toStringList(dto.languages || []),
+  ]);
+
+  // also parse from htmlContent ALWAYS and merge
+  const extrasFromHtml = parseHtmlContentToExtra(dto.htmlContent);
+
+  const educations = mappedEducations.length > 0 ? mappedEducations : extrasFromHtml.educations;
+  const careers = mappedCareers.length > 0 ? mappedCareers : extrasFromHtml.careers;
+  const certifications = unique([...mappedCertsFromDto, ...extrasFromHtml.certifications]);
+  const skills = unique([...mappedSkillsFromDto, ...extrasFromHtml.skills]);
+  const languages = unique([...mappedLangsFromDto, ...extrasFromHtml.languages]); // ★ 핵심
+
+  return {
+    id: dto.id,
+    title: dto.title,
+    idPhoto: dto.idPhoto ?? null,
+    essayTittle: dto.essayTittle ?? dto.essayTitle ?? null, // both supported
+    essayContent: dto.essayContent ?? null,
+    htmlContent: dto.htmlContent ?? null,
+    educations,
+    careers,
+    certifications,
+    skills,
+    languages,
+    locked: dto.locked,
+    users,
+    createAt: dto.createAt,
+    updateAt: dto.updateAt,
+  };
+}
+
+/* =========================
+ * Modal
+ * ========================= */
 interface ResumeDetailModalProps {
   resume: Resume | null;
   isOpen: boolean;
@@ -51,23 +242,18 @@ const ResumeDetailModal: React.FC<ResumeDetailModalProps> = ({ resume, isOpen, o
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        {/* 헤더 */}
+        {/* Header */}
         <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-6">
           <h3 className="text-xl font-semibold text-gray-800 dark:text-white">이력서 상세</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
             <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
 
-        {/* 내용 */}
+        {/* Body */}
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              이력서 제목
-            </label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">이력서 제목</label>
             <p className="text-lg font-semibold text-gray-800 dark:text-white">{resume.title}</p>
           </div>
 
@@ -77,24 +263,22 @@ const ResumeDetailModal: React.FC<ResumeDetailModalProps> = ({ resume, isOpen, o
             <span
               className={`px-2 py-1 rounded text-xs ${
                 resume.locked
-                  ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300'
-                  : 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300'
+                  ? "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300"
+                  : "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
               }`}
             >
-              {resume.locked ? '지원안됨' : '지원됨'}
+              {resume.locked ? "지원안됨" : "지원됨"}
             </span>
           </div>
 
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            <p>작성일: {new Date(resume.createAt).toLocaleDateString('ko-KR')}</p>
-            <p>수정일: {new Date(resume.updateAt).toLocaleDateString('ko-KR')}</p>
+            <p>작성일: {new Date(resume.createAt).toLocaleDateString("ko-KR")}</p>
+            <p>수정일: {new Date(resume.updateAt).toLocaleDateString("ko-KR")}</p>
           </div>
 
           {resume.idPhoto && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                프로필 사진
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">프로필 사진</label>
               <img
                 src={resume.idPhoto}
                 alt="프로필 사진"
@@ -196,7 +380,7 @@ const ResumeDetailModal: React.FC<ResumeDetailModalProps> = ({ resume, isOpen, o
               자기소개서 제목
             </label>
             <p className="text-base font-medium text-gray-800 dark:text-white">
-              {resume.essayTittle || '제목 없음'}
+              {resume.essayTittle || "제목 없음"}
             </p>
           </div>
 
@@ -205,7 +389,7 @@ const ResumeDetailModal: React.FC<ResumeDetailModalProps> = ({ resume, isOpen, o
               자기소개서 내용
             </label>
             <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-              {resume.essayContent || '내용 없음'}
+              {resume.essayContent || "내용 없음"}
             </div>
           </div>
         </div>
@@ -223,14 +407,9 @@ const ResumeDetailModal: React.FC<ResumeDetailModalProps> = ({ resume, isOpen, o
   );
 };
 
-interface PageResponse {
-  content: Resume[];
-  totalPages: number;
-  totalElements: number;
-  size: number;
-  number: number;
-}
-
+/* =========================
+ * Page Component
+ * ========================= */
 const ResumeManagement: React.FC = () => {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -243,15 +422,16 @@ const ResumeManagement: React.FC = () => {
   const fetchResumes = async (page: number = 0) => {
     try {
       setIsLoading(true);
-      const params = { page, size: 10, sort: 'createAt,desc' };
-      const response = await api.get<PageResponse>('/api/admin/resume-management', { params });
+      const params = { page, size: 10, sort: "createAt,desc" };
+      const response = await api.get<PageResponse<ResumeDtoFromApi>>("/api/admin/resume-management", { params });
 
-      setResumes(response.data.content);
+      const mapped = (response.data.content || []).map(normalizeResume);
+      setResumes(mapped);
       setTotalPages(response.data.totalPages);
       setTotalElements(response.data.totalElements);
       setCurrentPage(response.data.number);
     } catch (err: any) {
-      alert(err.response?.data?.message || '이력서 목록을 불러오는데 실패했습니다.');
+      alert(err?.response?.data?.message || "이력서 목록을 불러오는데 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -268,17 +448,18 @@ const ResumeManagement: React.FC = () => {
 
   const handleResumeClick = async (resumeId: number) => {
     try {
-      const response = await api.get<{ success: boolean; data: Resume }>(
+      const response = await api.get<{ success: boolean; data: ResumeDtoFromApi }>(
         `/api/admin/resume-management/${resumeId}`
       );
       if (response.data.success) {
-        setSelectedResume(response.data.data);
+        const mapped = normalizeResume(response.data.data);
+        setSelectedResume(mapped);
         setIsModalOpen(true);
       } else {
-        throw new Error('이력서 상세 정보를 불러오는데 실패했습니다.');
+        throw new Error("이력서 상세 정보를 불러오는데 실패했습니다.");
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || '이력서 상세 정보를 불러오는데 실패했습니다.');
+      alert(err?.response?.data?.message || "이력서 상세 정보를 불러오는데 실패했습니다.");
     }
   };
 
@@ -316,19 +497,17 @@ const ResumeManagement: React.FC = () => {
                     <span
                       className={`px-2 py-0.5 rounded text-xs ${
                         resume.locked
-                          ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300'
-                          : 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300'
+                          ? "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300"
+                          : "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
                       }`}
                     >
-                      {resume.locked ? '지원안됨' : '지원됨'}
+                      {resume.locked ? "지원안됨" : "지원됨"}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    작성자: {resume.users.nickname}
-                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">작성자: {resume.users.nickname}</div>
                   <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                    작성일: {new Date(resume.createAt).toLocaleDateString('ko-KR')} · 수정일:{' '}
-                    {new Date(resume.updateAt).toLocaleDateString('ko-KR')}
+                    작성일: {new Date(resume.createAt).toLocaleDateString("ko-KR")} · 수정일:{" "}
+                    {new Date(resume.updateAt).toLocaleDateString("ko-KR")}
                   </div>
                 </div>
               </div>
@@ -337,7 +516,7 @@ const ResumeManagement: React.FC = () => {
         </div>
       )}
 
-      {/* ✅ 페이지네이션 유지 */}
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center space-x-2 mt-6">
           <button
@@ -349,16 +528,11 @@ const ResumeManagement: React.FC = () => {
           </button>
 
           {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            let pageNum;
-            if (totalPages <= 5) {
-              pageNum = i;
-            } else if (currentPage < 3) {
-              pageNum = i;
-            } else if (currentPage > totalPages - 3) {
-              pageNum = totalPages - 5 + i;
-            } else {
-              pageNum = currentPage - 2 + i;
-            }
+            let pageNum: number;
+            if (totalPages <= 5) pageNum = i;
+            else if (currentPage < 3) pageNum = i;
+            else if (currentPage > totalPages - 3) pageNum = totalPages - 5 + i;
+            else pageNum = currentPage - 2 + i;
 
             return (
               <button
@@ -366,8 +540,8 @@ const ResumeManagement: React.FC = () => {
                 onClick={() => handlePageChange(pageNum)}
                 className={`px-3 py-1 rounded-lg ${
                   currentPage === pageNum
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                 }`}
               >
                 {pageNum + 1}
