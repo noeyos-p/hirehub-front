@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { BookmarkIcon, StarIcon } from "@heroicons/react/24/outline";
-import { BookmarkIcon as BookmarkSolidIcon, StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
+import { BookmarkIcon, StarIcon, EyeIcon } from "@heroicons/react/24/outline";
+import {
+  BookmarkIcon as BookmarkSolidIcon,
+  StarIcon as StarSolidIcon,
+} from "@heroicons/react/24/solid";
 import JobDetail from "./jopPostingComponents/JobDetail";
 import api from "../api/api";
 
 const JobPostings: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const searchQuery = searchParams.get('search') || '';
-
+  const searchQuery = searchParams.get("search") || "";
   const [filters, setFilters] = useState({
     position: "",
     experience: "",
@@ -20,16 +22,22 @@ const JobPostings: React.FC = () => {
   const [jobListings, setJobListings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [favoritedCompanies, setFavoritedCompanies] = useState<Set<number>>(new Set());
+  const [favoritedCompanies, setFavoritedCompanies] = useState<Set<number>>(
+    new Set()
+  );
   const [scrappedJobs, setScrappedJobs] = useState<Set<number>>(new Set());
   const itemsPerPage = 10;
 
+  // ✅ 즐겨찾기 목록 불러오기
   const fetchFavorites = async () => {
     try {
       const res = await api.get("/api/mypage/favorites/companies?page=0&size=1000");
-      const items = res.data.rows || res.data.content || res.data.items || [];
+      const items =
+        res.data.rows || res.data.content || res.data.items || [];
       const companyIds = new Set<number>(
-        items.map((item: any) => Number(item.companyId)).filter((id: number) => !isNaN(id))
+        items
+          .map((item: any) => Number(item.companyId))
+          .filter((id: number) => !isNaN(id))
       );
       setFavoritedCompanies(companyIds);
     } catch (err: any) {
@@ -40,6 +48,7 @@ const JobPostings: React.FC = () => {
     }
   };
 
+  // ✅ 공고 목록 불러오기
   useEffect(() => {
     const fetchJobs = async () => {
       setIsLoading(true);
@@ -48,7 +57,9 @@ const JobPostings: React.FC = () => {
         const response = await api.get("/api/jobposts");
         setJobListings(response.data);
       } catch (err: any) {
-        setError(err.response?.data?.message || "채용공고를 불러오는데 실패했습니다.");
+        setError(
+          err.response?.data?.message || "채용공고를 불러오는데 실패했습니다."
+        );
       } finally {
         setIsLoading(false);
       }
@@ -56,6 +67,7 @@ const JobPostings: React.FC = () => {
     fetchJobs();
   }, []);
 
+  // ✅ 즐겨찾기 변경 감지
   useEffect(() => {
     fetchFavorites();
     const handleFavoriteChanged = () => {
@@ -67,13 +79,16 @@ const JobPostings: React.FC = () => {
     };
   }, []);
 
+  // ✅ 스크랩 목록 불러오기
   useEffect(() => {
     const fetchScrappedJobs = async () => {
       try {
         const res = await api.get("/api/mypage/favorites/jobposts?page=0&size=1000");
         const items = res.data.rows || res.data.content || [];
         const jobIds = new Set<number>(
-          items.map((item: any) => Number(item.jobPostId)).filter((id: number) => !isNaN(id))
+          items
+            .map((item: any) => Number(item.jobPostId))
+            .filter((id: number) => !isNaN(id))
         );
         setScrappedJobs(jobIds);
       } catch (err: any) {
@@ -85,11 +100,12 @@ const JobPostings: React.FC = () => {
     fetchScrappedJobs();
   }, []);
 
-  // 검색어 변경 시 페이지 초기화
+  // ✅ 검색어 변경 시 페이지 초기화
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
 
+  // ✅ 즐겨찾기 토글
   const handleFavoriteClick = async (e: React.MouseEvent, companyId: number) => {
     e.stopPropagation();
     const isFavorited = favoritedCompanies.has(companyId);
@@ -97,7 +113,7 @@ const JobPostings: React.FC = () => {
       if (isFavorited) {
         const res = await api.delete(`/api/mypage/favorites/companies/${companyId}`);
         if (res.status === 204 || res.status === 200) {
-          setFavoritedCompanies(prev => {
+          setFavoritedCompanies((prev) => {
             const newSet = new Set(prev);
             newSet.delete(companyId);
             return newSet;
@@ -108,7 +124,7 @@ const JobPostings: React.FC = () => {
       } else {
         const res = await api.post(`/api/mypage/favorites/companies/${companyId}`);
         if (res.status === 200 && res.data) {
-          setFavoritedCompanies(prev => new Set(prev).add(companyId));
+          setFavoritedCompanies((prev) => new Set(prev).add(companyId));
           window.dispatchEvent(new CustomEvent("favorite-changed"));
           alert("기업을 즐겨찾기에 추가했습니다.");
         }
@@ -124,6 +140,7 @@ const JobPostings: React.FC = () => {
     }
   };
 
+  // ✅ 북마크 토글
   const handleBookmarkClick = async (e: React.MouseEvent, jobId: number) => {
     e.stopPropagation();
     const isScrapped = scrappedJobs.has(jobId);
@@ -131,7 +148,7 @@ const JobPostings: React.FC = () => {
       if (isScrapped) {
         const res = await api.delete(`/api/mypage/favorites/jobposts/${jobId}`);
         if (res.status === 204 || res.status === 200) {
-          setScrappedJobs(prev => {
+          setScrappedJobs((prev) => {
             const newSet = new Set(prev);
             newSet.delete(jobId);
             return newSet;
@@ -141,7 +158,7 @@ const JobPostings: React.FC = () => {
       } else {
         const res = await api.post(`/api/mypage/favorites/jobposts/${jobId}`);
         if (res.status === 200 && res.data) {
-          setScrappedJobs(prev => new Set(prev).add(jobId));
+          setScrappedJobs((prev) => new Set(prev).add(jobId));
           alert("북마크에 저장되었습니다.");
         }
       }
@@ -156,15 +173,29 @@ const JobPostings: React.FC = () => {
     }
   };
 
+  // ✅ 조회수 증가 + 상세 이동
+  const handleJobClick = async (jobId: number) => {
+    try {
+      await api.post(`/api/jobposts/${jobId}/views`);
+      setJobListings((prev) =>
+        prev.map((j) =>
+          j.id === jobId ? { ...j, views: (j.views ?? 0) + 1 } : j
+        )
+      );
+    } catch (err) {
+      console.error("조회수 증가 실패:", err);
+    }
+    setSelectedJobId(jobId);
+  };
+
   const seoulDistricts = [
-    "강남구", "강동구", "강북구", "강서구", "관악구",
-    "광진구", "구로구", "금천구", "노원구", "도봉구",
-    "동대문구", "동작구", "마포구", "서대문구", "서초구",
-    "성동구", "성북구", "송파구", "양천구", "영등포구",
-    "용산구", "은평구", "종로구", "중구", "중랑구",
+    "강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구",
+    "노원구", "도봉구", "동대문구", "동작구", "마포구", "서대문구", "서초구",
+    "성동구", "성북구", "송파구", "양천구", "영등포구", "용산구", "은평구",
+    "종로구", "중구", "중랑구",
   ];
 
-  // ✅ 개선된 필터 로직
+  // ✅ 필터 로직
   const filteredJobs = jobListings.filter((job) => {
     const jobTitle = job.title?.toLowerCase() || "";
     const jobCompany = job.companyName?.toLowerCase() || "";
@@ -180,19 +211,15 @@ const JobPostings: React.FC = () => {
       jobCompany.includes(query) ||
       jobPosition.includes(query) ||
       jobLoc.includes(query);
-
     const matchesPosition =
       !filters.position ||
       jobPosition.includes(filters.position.toLowerCase());
-
     const matchesExperience =
       !filters.experience ||
       jobCareer.includes(filters.experience.toLowerCase());
-
     const matchesEducation =
       !filters.education ||
       jobEdu.includes(filters.education.toLowerCase());
-
     const matchesLocation =
       !filters.location ||
       jobLoc.includes(filters.location.toLowerCase());
@@ -229,14 +256,14 @@ const JobPostings: React.FC = () => {
           </div>
         )}
 
-        {/* 검색 결과 표시 */}
         {searchQuery && (
           <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm flex items-center justify-between">
             <span>
-              '<strong>{searchQuery}</strong>' 검색 결과: <strong>{filteredJobs.length}</strong>개의 공고
+              '<strong>{searchQuery}</strong>' 검색 결과:{" "}
+              <strong>{filteredJobs.length}</strong>개의 공고
             </span>
             <button
-              onClick={() => window.location.href = '/jobPostings'}
+              onClick={() => (window.location.href = "/jobPostings")}
               className="text-blue-600 hover:text-blue-800 underline text-xs"
             >
               전체 보기
@@ -244,6 +271,7 @@ const JobPostings: React.FC = () => {
           </div>
         )}
 
+        {/* 필터 */}
         <div className="flex flex-wrap items-center gap-4 mb-6 text-sm text-gray-700 ">
           <select
             value={filters.position}
@@ -262,7 +290,9 @@ const JobPostings: React.FC = () => {
 
           <select
             value={filters.experience}
-            onChange={(e) => setFilters({ ...filters, experience: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, experience: e.target.value })
+            }
             className="px-3 py-2"
             disabled={isLoading}
           >
@@ -274,7 +304,9 @@ const JobPostings: React.FC = () => {
 
           <select
             value={filters.education}
-            onChange={(e) => setFilters({ ...filters, education: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, education: e.target.value })
+            }
             className="px-3 py-2"
             disabled={isLoading}
           >
@@ -286,7 +318,9 @@ const JobPostings: React.FC = () => {
 
           <select
             value={filters.location}
-            onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, location: e.target.value })
+            }
             className="px-3 py-2"
             disabled={isLoading}
           >
@@ -299,11 +333,12 @@ const JobPostings: React.FC = () => {
           </select>
         </div>
 
+        {/* 공고 목록 */}
         {isLoading ? (
           <div className="text-center py-10 text-gray-600">로딩 중...</div>
         ) : filteredJobs.length === 0 ? (
           <div className="text-center py-10 text-gray-500">
-            {searchQuery ? '검색 결과가 없습니다.' : '채용 공고가 없습니다.'}
+            {searchQuery ? "검색 결과가 없습니다." : "채용 공고가 없습니다."}
           </div>
         ) : (
           <>
@@ -313,16 +348,22 @@ const JobPostings: React.FC = () => {
                   key={job.id}
                   className="flex justify-between items-center py-4 hover:bg-gray-100 px-2 rounded-md transition"
                 >
-                  <div 
+                  <div
                     className="flex-1 cursor-pointer"
-                    onClick={() => setSelectedJobId(job.id)}
+                    onClick={() => handleJobClick(job.id)}
                   >
                     <div className="flex items-center space-x-2 mb-1">
-                      <p className="text-sm font-semibold text-gray-900">{job.companyName}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {job.companyName}
+                      </p>
                       <button
                         onClick={(e) => handleFavoriteClick(e, job.companyId)}
                         className="transition-all hover:scale-110"
-                        title={favoritedCompanies.has(job.companyId) ? "즐겨찾기 해제" : "즐겨찾기"}
+                        title={
+                          favoritedCompanies.has(job.companyId)
+                            ? "즐겨찾기 해제"
+                            : "즐겨찾기"
+                        }
                       >
                         {favoritedCompanies.has(job.companyId) ? (
                           <StarSolidIcon className="w-4 h-4 text-yellow-500" />
@@ -331,6 +372,7 @@ const JobPostings: React.FC = () => {
                         )}
                       </button>
                     </div>
+
                     <p className="text-sm text-gray-800">{job.title}</p>
                     <p className="text-sm text-gray-500">
                       {job.position && <span>{job.position} / </span>}
@@ -339,11 +381,24 @@ const JobPostings: React.FC = () => {
                   </div>
 
                   <div className="flex items-center space-x-3 text-sm text-gray-600">
-                    <span>{job.startAt} - {job.endAt}</span>
+                    {/* 👁 조회수 */}
+                    <div className="flex items-center space-x-1 text-gray-500">
+                      <EyeIcon className="w-4 h-4" />
+                      <span>{job.views ?? 0}</span>
+                    </div>
+
+                    <span>
+                      {job.startAt} - {job.endAt}
+                    </span>
+
                     <button
                       onClick={(e) => handleBookmarkClick(e, job.id)}
                       className="transition-all hover:scale-110"
-                      title={scrappedJobs.has(job.id) ? "북마크 해제" : "북마크 추가"}
+                      title={
+                        scrappedJobs.has(job.id)
+                          ? "북마크 해제"
+                          : "북마크 추가"
+                      }
                     >
                       {scrappedJobs.has(job.id) ? (
                         <BookmarkSolidIcon className="w-5 h-5 text-yellow-500" />
@@ -356,7 +411,7 @@ const JobPostings: React.FC = () => {
               ))}
             </div>
 
-            {/* 페이지네이션 */}
+            {/* ✅ 페이지네이션 */}
             <div className="flex justify-center items-center space-x-1 mt-8">
               <button
                 className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -377,13 +432,14 @@ const JobPostings: React.FC = () => {
               {(() => {
                 const pages = [];
                 const maxVisible = 5;
-                let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                let startPage = Math.max(
+                  1,
+                  currentPage - Math.floor(maxVisible / 2)
+                );
                 let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-                
                 if (endPage - startPage + 1 < maxVisible) {
                   startPage = Math.max(1, endPage - maxVisible + 1);
                 }
-
                 for (let i = startPage; i <= endPage; i++) {
                   pages.push(
                     <button
