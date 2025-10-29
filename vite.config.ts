@@ -4,18 +4,21 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: '0.0.0.0',  // ← 외부 접속 허용
-    port: 3000,
+    host: '0.0.0.0',
+    port: 3000,  // 기본 포트
     proxy: {
-      '/api': 'http://localhost:8080',
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       '/ws': {
         target: 'http://localhost:8080',
         ws: true,
-      }
-    }
+        changeOrigin: true,
+      },
+    },
   },
   define: {
-    'global': 'globalThis',
-    'process.env': {}
-  }
+    global: 'globalThis',
+  },
 })
