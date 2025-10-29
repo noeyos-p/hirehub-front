@@ -14,6 +14,8 @@ import JobPostings from './jobPostings/JobPostings';
 import CompanyDetail from './jobPostings/jopPostingComponents/CompanyDetail';
 import JobDetailWrapper from './jobPostings/jopPostingComponents/JobDetailWrapper';
 import ChatBot from './chatBot/ChatBot';
+import ResumeViewer from './myPage/resume/ResumeViewer';
+
 
 function App() {
   return (
@@ -45,6 +47,9 @@ function App() {
         {/* 챗봇/기업 상세 */}
         <Route path="/chatBot" element={<Layout><ChatBot /></Layout>} />
         <Route path="/company/:companyName" element={<Layout><CompanyDetail onBack={() => window.history.back()} /></Layout>} />
+
+        <Route path="/myPage/resume/ResumeViewer/:id" element={<ResumeViewer />} />
+
       </Routes>
     </BrowserRouter>
   );
