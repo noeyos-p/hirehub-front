@@ -23,19 +23,5 @@ api.interceptors.request.use(
   }
 );
 
-// 응답 인터셉터: 401 에러 시 자동 로그인 페이지 이동
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    if (error.response?.status === 401) {
-      console.error('🚫 인증 만료 - 로그인 페이지로 이동');
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
 
 export default api;
