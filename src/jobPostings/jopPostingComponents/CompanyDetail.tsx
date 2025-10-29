@@ -172,7 +172,8 @@ const fetchReviews = async (companyName: string) => {
     await api.post(`/api/reviews`, {  // ← 수정
       content: newReview,
       score: newRating,
-      companyId: company!.id
+      companyId: company!.id,
+      usersId: 1  // ← 실제 로그인한 유저 ID로 변경 필요
     });
     await fetchReviews(company!.name);
     setNewReview("");
