@@ -6,9 +6,11 @@ import api from "../../api/api";
 
 interface Review {
   id: number;
-  author: string;
+  usersId: string;
+  nickname: string;
   content: string;
   date: string;
+  score: number; // 1-5 별점
 }
 
 interface Company {
@@ -33,45 +35,65 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
   const [company, setCompany] = useState<Company | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [newReview, setNewReview] = useState("");
+  const [newRating, setNewRating] = useState(0); // 새 리뷰의 별점
+  const [hoverRating, setHoverRating] = useState(0); // 마우스 호버 시 별점
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isFavorited, setIsFavorited] = useState(false);
   const [isFavoriteProcessing, setIsFavoriteProcessing] = useState(false);
 
+  // ✅ 평균 평점 계산
+  const averageRating = reviews.length > 0
+    ? reviews.reduce((sum, review) => sum + review.score, 0) / reviews.length
+    : 0;
+
   // ✅ 회사 정보 + 리뷰 불러오기
   useEffect(() => {
-   const fetchCompanyData = async () => {
-  try {
-    const decodedName = decodeURIComponent(companyName || '');  // URL 디코딩 명시
-    console.log(`🔍 회사 이름 디코딩: ${decodedName}`);
-    const companyRes = await api.get(`/api/companies/${encodeURIComponent(decodedName)}`);
-    console.log("✅ 회사 데이터:", companyRes.data);
-    setCompany(companyRes.data);
-    if (companyRes.data?.id) {
-      fetchFavoriteStatus(companyRes.data.id);  // 즉시 호출
+  const fetchCompanyData = async () => {
+    try {
+      const decodedName = decodeURIComponent(companyName || '');
+      console.log(`🔍 회사 이름 디코딩: ${decodedName}`);
+      const companyRes = await api.get(`/api/companies/${encodeURIComponent(decodedName)}`);
+      console.log("✅ 회사 데이터:", companyRes.data);
+      setCompany(companyRes.data);
+      if (companyRes.data?.id) {
+        fetchFavoriteStatus(companyRes.data.id);
+        fetchReviews(companyRes.data.name);  // ← 이 줄 추가
+      }
+    } catch (err: any) {
+      console.error("❌ 회사 로드 실패:", err.response?.data);
+      setError(err.response?.data?.message || "회사 정보를 불러오는데 실패했습니다.");
+    } finally {
+      setIsLoading(false);
     }
-  } catch (err: any) {
-    console.error("❌ 회사 로드 실패:", err.response?.data);
-    setError(err.response?.data?.message || "회사 정보를 불러오는데 실패했습니다.");
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
-    fetchCompanyData();
-  }, [companyName]);
+  fetchCompanyData();
+}, [companyName]);
 
   // ✅ 즐겨찾기 상태 확인 함수
   const fetchFavoriteStatus = async (companyId: number) => {
+    try {
+      const res = await api.get(`/api/mypage/favorites/companies?page=0&size=1000`);
+      const items = res.data.content || res.data.rows || res.data.items || [];
+      const exists = items.some((item: any) => parseInt(item.companyId, 10) === companyId);
+      setIsFavorited(exists);
+    } catch (err) {
+      setIsFavorited(false);
+    }
+  };
+
+  // ✅ 리뷰 가져오기 함수
+const fetchReviews = async (companyName: string) => {
   try {
-    const res = await api.get(`/api/mypage/favorites/companies?page=0&size=1000`);
-    const items = res.data.content || res.data.rows || res.data.items || [];  // 응답 구조 통합
-    const exists = items.some((item: any) => parseInt(item.companyId, 10) === companyId);  // parseInt로 안전 변환
-    setIsFavorited(exists);
+    const res = await api.get(`/api/reviews/company/${encodeURIComponent(companyName)}`);
+    console.log("✅ 리뷰 데이터:", res.data);
+    setReviews(res.data);
   } catch (err) {
-    setIsFavorited(false);
+    console.error("리뷰 로드 실패:", err);
   }
 };
+
 
   // ✅ company.id가 설정되면 즐겨찾기 상태 확인
   useEffect(() => {
@@ -136,16 +158,46 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
   };
 
   // ✅ 리뷰 추가
-  const handleAddReview = () => {
-    if (!newReview.trim()) return;
-    const newItem = {
-      id: reviews.length + 1,
-      author: "홍길동",
+  const handleAddReview = async () => {
+  if (!newReview.trim()) {
+    alert("리뷰 내용을 입력해주세요.");
+    return;
+  }
+  if (newRating === 0) {
+    alert("별점을 선택해주세요.");
+    return;
+  }
+
+  try {
+    await api.post(`/api/reviews`, {  // ← 수정
       content: newReview,
-      date: new Date().toLocaleString(),
-    };
-    setReviews((prev) => [...prev, newItem]);
+      score: newRating,
+      companyId: company!.id,
+      usersId: 1  // ← 실제 로그인한 유저 ID로 변경 필요
+    });
+    await fetchReviews(company!.name);
     setNewReview("");
+    setNewRating(0);
+    alert("리뷰가 등록되었습니다.");
+  } catch (err: any) {
+    alert(err?.response?.data?.message || "리뷰 등록에 실패했습니다.");
+  }
+};
+
+  // ✅ 별점 렌더링 컴포넌트
+  const RatingStars = ({ score, size = "w-5 h-5" }: { score: number; size?: string }) => {
+    return (
+      <div className="flex items-center space-x-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <StarSolidIcon
+            key={star}
+            className={`${size} ${
+              star <= score ? "text-yellow-400" : "text-gray-300"
+            }`}
+          />
+        ))}
+      </div>
+    );
   };
 
   if (isLoading) return <div className="text-center py-10 text-gray-600">로딩 중...</div>;
@@ -186,6 +238,19 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
           </button>
         </div>
 
+        {/* ⭐ 평균 평점 표시 */}
+        {reviews.length > 0 && (
+          <div className="flex items-center space-x-2 mb-4">
+            <RatingStars score={Math.round(averageRating)} />
+            <span className="text-lg font-semibold text-gray-700">
+              {averageRating.toFixed(1)}
+            </span>
+            <span className="text-sm text-gray-500">
+              ({reviews.length}개의 리뷰)
+            </span>
+          </div>
+        )}
+
         <p className="text-gray-600 mb-6">{company.description}</p>
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-700 mb-6">
@@ -219,30 +284,81 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ onBack }) => {
           기업 사진
         </div>
 
-        <div className="flex items-center border border-gray-300 rounded-full px-4 py-2 mb-8 max-w-md">
-          <input
-            type="text"
-            placeholder="기업 리뷰를 남겨주세요"
-            className="flex-1 text-sm outline-none"
-            value={newReview}
-            onChange={(e) => setNewReview(e.target.value)}
-          />
-          <button onClick={handleAddReview} className="ml-2 text-sm text-gray-600 hover:text-gray-900">
-            ➤
-          </button>
+        {/* ⭐ 리뷰 작성 영역 (별점 선택 추가) */}
+        <div className="border border-gray-300 rounded-lg p-4 mb-8 max-w-2xl">
+          <h3 className="text-lg font-semibold mb-3">리뷰 작성</h3>
+          
+          {/* 별점 선택 */}
+          <div className="mb-3">
+            <p className="text-sm text-gray-600 mb-2">별점을 선택해주세요</p>
+            <div className="flex items-center space-x-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setNewRating(star)}
+                  onMouseEnter={() => setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(0)}
+                  className="focus:outline-none transition-transform hover:scale-110"
+                >
+                  <StarSolidIcon
+                    className={`w-8 h-8 ${
+                      star <= (hoverRating || newRating)
+                        ? "text-yellow-400"
+                        : "text-gray-300"
+                    }`}
+                  />
+                </button>
+              ))}
+              {newRating > 0 && (
+                <span className="ml-2 text-sm text-gray-600">
+                  {newRating}점
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* 리뷰 입력 */}
+          <div className="flex items-center border border-gray-300 rounded-full px-4 py-2">
+            <input
+              type="text"
+              placeholder="기업 리뷰를 남겨주세요"
+              className="flex-1 text-sm outline-none"
+              value={newReview}
+              onChange={(e) => setNewReview(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleAddReview()}
+            />
+            <button
+              onClick={handleAddReview}
+              className="ml-2 text-sm text-gray-600 hover:text-gray-900"
+            >
+              ➤
+            </button>
+          </div>
         </div>
 
+        {/* 리뷰 목록 */}
         <div className="space-y-6 mb-8">
-          {reviews.map((review) => (
-            <div key={review.id} className="flex items-start space-x-3">
-              <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-700">{review.author}</p>
-                <p className="text-sm text-gray-800">{review.content}</p>
-                <p className="text-xs text-gray-400 mt-1">{review.date}</p>
+          <h3 className="text-lg font-semibold">
+            리뷰 ({reviews.length})
+          </h3>
+          {reviews.length === 0 ? (
+            <p className="text-gray-500 text-sm">아직 작성된 리뷰가 없습니다.</p>
+          ) : (
+            reviews.map((review) => (
+              <div key={review.id} className="flex items-start space-x-3 border-b pb-4">
+                <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0"></div>
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <p className="text-sm font-medium text-gray-700">{review.nickname}</p>
+                    <RatingStars score={review.score} size="w-4 h-4" />
+                  </div>
+                  <p className="text-sm text-gray-800 mb-1">{review.content}</p>
+                  <p className="text-xs text-gray-400">{review.date}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
