@@ -1,5 +1,5 @@
 // src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import './App.css';
 import './index.css';
 import Layout from './layout/Layout';
@@ -12,6 +12,7 @@ import Login from './signPage/login/Login';
 import Signup from './signPage/signup/SignUp';
 import JobPostings from './jobPostings/JobPostings';
 import CompanyDetail from './jobPostings/jopPostingComponents/CompanyDetail';
+import JobDetailWrapper from './jobPostings/jopPostingComponents/JobDetailWrapper';
 import ChatBot from './chatBot/ChatBot';
 
 function App() {
@@ -28,12 +29,13 @@ function App() {
         <Route path="/admin" element={<Navigate to="/admin/job-management" replace />} />
         <Route path="/admin/:tab/*" element={<Layout><AdminLayout /></Layout>} />
 
-        {/* 마이페이지(탭 라우팅은 MyPage 내부에서 처리) */}
+        {/* 마이페이지 */}
         <Route path="/myPage" element={<Navigate to="/myPage/MyInfo" replace />} />
         <Route path="/myPage/:tab/*" element={<Layout><MyPage /></Layout>} />
 
         {/* 채용 공고 */}
         <Route path="/jobPostings" element={<Layout><JobPostings /></Layout>} />
+        <Route path="/jobPostings/:jobId" element={<Layout><JobDetailWrapper /></Layout>} />
 
         {/* 로그인/회원가입 */}
         <Route path="/login" element={<Layout><Login /></Layout>} />
@@ -43,10 +45,9 @@ function App() {
         {/* 챗봇/기업 상세 */}
         <Route path="/chatBot" element={<Layout><ChatBot /></Layout>} />
         <Route path="/company/:companyName" element={<Layout><CompanyDetail onBack={() => window.history.back()} /></Layout>} />
-
-        {/* ❌ 여기 있었던 /myPage/resume/ResumeViewer/:id 라우트는 제거 */}
       </Routes>
     </BrowserRouter>
   );
 }
+
 export default App;

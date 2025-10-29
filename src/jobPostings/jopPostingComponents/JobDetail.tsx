@@ -44,7 +44,7 @@ const JobDetail: React.FC<JobDetailProps> = ({ jobId, onBack }) => {
   const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
   const [isApplying, setIsApplying] = useState(false);
 
-  // ✅ 상세 공고 불러오기 (조회수 증가 로직 제거)
+  // ✅ 상세 공고 불러오기
   const fetchJobDetail = async () => {
     try {
       setIsLoading(true);
@@ -224,17 +224,22 @@ const JobDetail: React.FC<JobDetailProps> = ({ jobId, onBack }) => {
     </div>
   );
 
-  if (isLoading) return <div className="text-center py-10 text-gray-600">로딩 중...</div>;
+  if (isLoading) return (
+    <div className="text-center py-10 text-gray-600">로딩 중...</div>
+  );
+  
   if (error) return (
     <div className="text-center py-10 text-red-600">
       {error}
-      <button onClick={onBack} className="block mt-4 text-blue-600 underline">목록으로 돌아가기</button>
+      <button onClick={onBack} className="block mt-4 text-blue-600 underline mx-auto">목록으로 돌아가기</button>
     </div>
   );
+  
   if (!job) return null;
 
   return (
     <>
+      {/* ✅ max-w-6xl로 변경하여 JobPostings와 동일한 너비 사용 */}
       <div className="bg-white rounded-lg shadow p-8">
         <button onClick={onBack} className="text-sm text-blue-600 mb-4 hover:underline">← 목록으로 돌아가기</button>
 
