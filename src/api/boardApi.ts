@@ -1,5 +1,4 @@
 import api from './api';
-import type { Board } from '../types/interface';
 
 export interface BoardListResponse {
   id: number;

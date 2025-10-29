@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { BookmarkIcon, StarIcon } from "@heroicons/react/24/outline";
 import { BookmarkIcon as BookmarkSolidIcon, StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import JobDetail from "./jopPostingComponents/JobDetail";
 import api from "../api/api";
 
 const JobPostings: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get('search') || '';
+
   const [filters, setFilters] = useState({
     role: "",
     experience: "",
@@ -81,6 +85,11 @@ const JobPostings: React.FC = () => {
     fetchScrappedJobs();
   }, []);
 
+  // 검색어가 변경되면 페이지를 1로 초기화
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   const handleFavoriteClick = async (e: React.MouseEvent, companyId: number) => {
     e.stopPropagation();
     const isFavorited = favoritedCompanies.has(companyId);
@@ -155,12 +164,20 @@ const JobPostings: React.FC = () => {
     "용산구", "은평구", "종로구", "중구", "중랑구",
   ];
 
+  // 검색어 필터링 추가
   const filteredJobs = jobListings.filter(
-    (job) =>
-      (filters.role ? job.title.includes(filters.role) : true) &&
-      (filters.experience ? job.careerLevel === filters.experience : true) &&
-      (filters.education ? job.education === filters.education : true) &&
-      (filters.location ? job.location.includes(filters.location) : true)
+    (job) => {
+      const matchesSearch = !searchQuery || 
+        job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.location.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      return matchesSearch &&
+        (filters.role ? job.title.includes(filters.role) : true) &&
+        (filters.experience ? job.careerLevel === filters.experience : true) &&
+        (filters.education ? job.education === filters.education : true) &&
+        (filters.location ? job.location.includes(filters.location) : true);
+    }
   );
 
   const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
@@ -183,6 +200,21 @@ const JobPostings: React.FC = () => {
         {error && (
           <div className="mb-4 px-4 py-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
             {error}
+          </div>
+        )}
+
+        {/* 검색 결과 표시 */}
+        {searchQuery && (
+          <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm flex items-center justify-between">
+            <span>
+              '<strong>{searchQuery}</strong>' 검색 결과: <strong>{filteredJobs.length}</strong>개의 공고
+            </span>
+            <button
+              onClick={() => window.location.href = '/jobPostings'}
+              className="text-blue-600 hover:text-blue-800 underline text-xs"
+            >
+              전체 보기
+            </button>
           </div>
         )}
 
@@ -239,6 +271,10 @@ const JobPostings: React.FC = () => {
 
         {isLoading ? (
           <div className="text-center py-10 text-gray-600">로딩 중...</div>
+        ) : filteredJobs.length === 0 ? (
+          <div className="text-center py-10 text-gray-500">
+            {searchQuery ? '검색 결과가 없습니다.' : '채용 공고가 없습니다.'}
+          </div>
         ) : (
           <>
             <div className="divide-y divide-gray-200">

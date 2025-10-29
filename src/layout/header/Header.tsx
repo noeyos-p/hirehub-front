@@ -7,6 +7,7 @@ export default function Header() {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout, loading } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // 드롭다운 외부 클릭 감지
@@ -25,6 +26,22 @@ export default function Header() {
     logout();
     setShowDropdown(false);
     navigate('/login');
+  };
+
+  // 검색 처리
+  const handleSearch = () => {
+    if (!searchKeyword.trim()) {
+      alert('검색어를 입력해주세요.');
+      return;
+    }
+    navigate(`/jobPostings?search=${encodeURIComponent(searchKeyword)}`);
+    setSearchKeyword('');
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   return (
@@ -49,10 +66,15 @@ export default function Header() {
           <div className="relative">
             <input
               type="text"
-              placeholder="검색..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="채용공고 검색..."
               className="border border-gray-300 rounded-full px-4 py-1.5 pr-9 text-sm focus:outline-none focus:border-blue-500 w-64"
             />
-            <MagnifyingGlassIcon className="w-4 h-4 text-gray-500 absolute right-3 top-2.5" />
+            <button onClick={handleSearch}>
+              <MagnifyingGlassIcon className="w-4 h-4 text-gray-500 absolute right-3 top-2.5 cursor-pointer hover:text-blue-500 transition" />
+            </button>
           </div>
 
           {/* 로그인/프로필 영역 */}
