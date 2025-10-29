@@ -44,6 +44,7 @@ const JOB_DETAIL_PATHS = (id: number) => [
 
 /** 리스트/보드에서 상세를 prop 기반으로 여는 경우를 대비한 Fallback */
 const JOB_BOARD_WITH_QS = (id: number) => `/jobs?id=${id}`;
+const jobDetailPath = (id: number) => `/jobposts/${id}`;
 
 const yoil = ["일", "월", "화", "수", "목", "금", "토"];
 const prettyMDW = (iso?: string) => {
@@ -317,27 +318,23 @@ const FavoriteCompanies: React.FC = () => {
                       <ul className="space-y-2">
                         {postsToShow.map((p) => (
                           <li key={p.id}>
-                            {/* ✅ Link + onClick 모두: 라우트/이벤트/쿼리 fallback 동시 지원 */}
-                            <Link
-                              to={JOB_DETAIL_PATHS(p.id)[0]}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                goJobDetail(p.id);
-                              }}
-                              className="flex items-center justify-between bg-white rounded-md px-3 py-2 border hover:border-gray-300 cursor-pointer"
-                              title="채용 상세 보기"
-                            >
-                              <div className="min-w-0">
-                                <div className="font-medium text-gray-900 truncate">{p.title}</div>
-                                <div className="text-xs text-gray-500">
-                                  {[p.position, p.location].filter(Boolean).join(" · ")}
-                                </div>
-                              </div>
-                              <div className="text-xs text-gray-600">
-                                {p.endAt ? `마감: ${prettyMDW(p.endAt)}` : ""}
-                              </div>
-                            </Link>
-                          </li>
+  {/* ❗ preventDefault 제거: 라우터로 바로 이동 */}
+  <Link
+    to={jobDetailPath(p.id)}
+    className="flex items-center justify-between bg-white rounded-md px-3 py-2 border hover:border-gray-300 cursor-pointer"
+    title="채용 상세 보기"
+  >
+    <div className="min-w-0">
+      <div className="font-medium text-gray-900 truncate">{p.title}</div>
+      <div className="text-xs text-gray-500">
+        {[p.position, p.location].filter(Boolean).join(" · ")}
+      </div>
+    </div>
+    <div className="text-xs text-gray-600">
+      {p.endAt ? `마감: ${prettyMDW(p.endAt)}` : ""}
+    </div>
+  </Link>
+</li>
                         ))}
                       </ul>
                     )}
