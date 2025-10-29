@@ -12,6 +12,7 @@ interface Job {
   education: string;     // 학력
   type?: string;         // 고용형태 (추가)
   views: number;
+  location: string;
 }
 
 const AttentionSection: React.FC = () => {
@@ -78,7 +79,7 @@ const AttentionSection: React.FC = () => {
             <p className="font-semibold text-gray-800 text-sm">{job.companyName}</p>
             <p className="text-gray-900 font-bold mt-1">{job.title}</p>
             <p className="text-gray-500 text-xs mt-2">
-              {job.position} / {job.careerLevel} / {job.education}
+              {job.position} / {job.careerLevel} / {job.education} / {job.location}
             </p>
             <div className="flex items-center space-x-1 mt-2 text-gray-500 text-xs">
               <EyeIcon className="w-3 h-3" />
