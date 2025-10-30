@@ -9,7 +9,7 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login, checkAuth } = useAuth(); // useAuth 훅 추가
+  const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,17 +38,13 @@ const Login: React.FC = () => {
         console.log('- Role:', role);
         console.log('- Email:', userEmail || email);
 
-        // ✅ 즉시 인증 상태 갱신
-        login(accessToken);
-        await checkAuth();
-
-        // role에 따라 페이지 이동
+        // ✅ 로그인 후 페이지 새로고침으로 이동
         if (role === 'ADMIN') {
           console.log('✅ 관리자 - Admin 페이지로 이동');
-          navigate('/admin');
+          window.location.href = '/admin';
         } else {
           console.log('✅ 일반 사용자 - 메인 페이지로 이동');
-          navigate('/');
+          window.location.href = '/';
         }
       }
     } catch (err: any) {
@@ -71,7 +67,6 @@ const Login: React.FC = () => {
         <img src="/HIREHUB_LOGO.PNG" alt="HireHub Logo" className="h-10" />
         <h1 className="text-text-primary dark:text-white text-2xl font-bold leading-tight text-center px-4 pb-6">로그인</h1>
         
-        {/* 에러 메시지 */}
         {error && (
           <div className="w-full px-4 py-3 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 rounded-lg text-sm">
             {error}
@@ -131,7 +126,8 @@ const Login: React.FC = () => {
               <img
                 alt="Google logo"
                 className="w-7 h-7 mr-3"
-                src='/google_logo_icon_169090.png'              />
+                src='/google_logo_icon_169090.png'
+              />
               <span>Google</span>
             </button>
           </div>

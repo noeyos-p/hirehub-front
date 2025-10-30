@@ -27,6 +27,7 @@ export const useAuth = () => {
     if (!token) {
       setLoading(false);
       setIsAuthenticated(false);
+      setUser(null);
       return;
     }
 
@@ -34,22 +35,28 @@ export const useAuth = () => {
       const response = await api.get('/api/auth/me');
       setUser(response.data);
       setIsAuthenticated(true);
+      console.log('✅ 인증 확인 완료:', response.data);
     } catch (error) {
-      console.error('인증 확인 실패:', error);
+      console.error('❌ 인증 확인 실패:', error);
       setIsAuthenticated(false);
+      setUser(null);
       localStorage.removeItem('token');
     } finally {
       setLoading(false);
     }
   };
 
-  const login = (token: string) => {
+  // ✅ login 함수를 async로 변경하여 checkAuth 완료를 기다림
+  const login = async (token: string) => {
     localStorage.setItem('token', token);
-    checkAuth();
+    await checkAuth();
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('email');
+    localStorage.removeItem('userId');
     setUser(null);
     setIsAuthenticated(false);
   };
