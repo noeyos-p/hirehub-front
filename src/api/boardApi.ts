@@ -64,11 +64,21 @@ export const boardApi = {
     return response.data;
   },
 
+  // 방법 1: 쿼리 파라미터로 전달 (추천)
   searchBoards: async (keyword: string): Promise<BoardListResponse[]> => {
-    const response = await api.get('/api/board/search', {
-      params: { keyword }
-    });
-    return response.data;
+    console.log('🔍 검색 API 호출:', keyword);
+    try {
+      const response = await api.get('/api/board/search', {
+        params: { 
+          keyword: keyword.trim() 
+        }
+      });
+      console.log('✅ 검색 API 응답:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ 검색 API 에러:', error.response?.data || error.message);
+      throw error;
+    }
   }
 };
 
